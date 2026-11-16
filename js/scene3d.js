@@ -44,10 +44,10 @@ const Scene3D = {
     this.controls.target.set(0, 4, 0);
 
     // Ambient & Directional Sun Light
-    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0xe2e8f0, 0.65);
+    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0xe2e8f0, 0.55);
     this.scene.add(hemiLight);
 
-    this.sunLight = new THREE.DirectionalLight(0xfffbeb, 1.25);
+    this.sunLight = new THREE.DirectionalLight(0xfffbeb, 1.5);
     this.sunLight.castShadow = true;
     this.sunLight.shadow.mapSize.width = 2048;
     this.sunLight.shadow.mapSize.height = 2048;
@@ -66,7 +66,7 @@ const Scene3D = {
 
     // Ground Grid
     const groundGeo = new THREE.PlaneGeometry(160, 160);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0xe8ecf0, roughness: 0.95 });
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.95 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
@@ -173,7 +173,7 @@ const Scene3D = {
     const tiltRad = (state.roofTilt * Math.PI) / 180;
 
     // 1. Building Base Walls
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xd7dde6, roughness: 0.85 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xc3ccd8, roughness: 0.85 });
     const wallGeo = new THREE.BoxGeometry(L, H, W);
     const wallMesh = new THREE.Mesh(wallGeo, wallMat);
     wallMesh.position.y = H / 2;
@@ -298,7 +298,7 @@ const Scene3D = {
       roughness: 0.2,
       metalness: 0.65
     });
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.5 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.5 });
     const obstacleMat = new THREE.MeshStandardMaterial({ color: 0xF5E214, roughness: 0.4 });
 
     let count = 0;
