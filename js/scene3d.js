@@ -11,6 +11,7 @@ const Scene3D = {
   controls: null,
   rootGroup: null,
   panelsGroup: null,
+  windArrowGroup: null,
   sunLight: null,
   sunSphere: null,
   raycaster: new THREE.Raycaster(),
@@ -76,6 +77,31 @@ const Scene3D = {
     grid.position.y = 0.02;
     this.scene.add(grid);
 
+    // Compass arrows flat on the ground (north = -Z in this scene).
+    // North arrow: brand blue, fixed. Wind arrow: amber, rotates with wind direction.
+    const arrowShape = new THREE.Shape();
+    arrowShape.moveTo(-0.3, -2.5);
+    arrowShape.lineTo(0.3, -2.5);
+    arrowShape.lineTo(0.3, 1.2);
+    arrowShape.lineTo(0.8, 1.2);
+    arrowShape.lineTo(0, 2.5);
+    arrowShape.lineTo(-0.8, 1.2);
+    arrowShape.lineTo(-0.3, 1.2);
+    arrowShape.closePath();
+    const arrowGeo = new THREE.ShapeGeometry(arrowShape);
+
+    const northArrow = new THREE.Mesh(arrowGeo, new THREE.MeshBasicMaterial({ color: 0x12579B }));
+    northArrow.rotation.x = -Math.PI / 2; // tip (+Y) points to -Z = north
+    northArrow.position.set(-16, 0.06, 20);
+    this.scene.add(northArrow);
+
+    this.windArrowGroup = new THREE.Group();
+    this.windArrowGroup.position.set(-10, 0.06, 20);
+    const windArrow = new THREE.Mesh(arrowGeo, new THREE.MeshBasicMaterial({ color: 0xD97706 }));
+    windArrow.rotation.x = -Math.PI / 2;
+    this.windArrowGroup.add(windArrow);
+    this.scene.add(this.windArrowGroup);
+
     this.rootGroup = new THREE.Group();
     this.panelsGroup = new THREE.Group();
     this.scene.add(this.rootGroup);
@@ -129,8 +155,13 @@ const Scene3D = {
     animate();
   },
 
-  setCameraPreset(preset) {
-    if (preset === 'top') {
+  // Wind arrow points where the wind blows toward (azimuth: 0 = north, 90 = east).
+  setWindDirection(deg) {
+    if (!this.windArrowGroup) return;
+    this.windArrowGroup.rotation.y = (-deg * Math.PI) / 180;
+  },
+
+  setCameraPreset(preset) {    if (preset === 'top') {
       this.camera.position.set(0, 42, 0.01);
     } else if (preset === 'side') {
       this.camera.position.set(0, 10, 38);
@@ -270,6 +301,9 @@ const Scene3D = {
         (state.rackTilt * Math.PI) / 180
       );
     }
+
+    // Building orientation: azimuth the main array faces (180 = south = default pose).
+    this.rootGroup.rotation.y = ((180 - state.orientation) * Math.PI) / 180;
 
     return { activePanelsCount, rafterLength };
   },

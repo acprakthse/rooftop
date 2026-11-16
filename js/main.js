@@ -5,6 +5,7 @@
 
 const AppState = {
   roofType: 'gable-dual',
+  orientation: 180,
   roofLength: 24,
   roofWidth: 14,
   roofTilt: 18,
@@ -18,8 +19,17 @@ const AppState = {
   siteLocation: 'jakarta',
   bessKwh: 120,
   sunHour: 10.5,
+  windDirection: 90,
   currency: 'IDR'
 };
+
+// 8-point compass names, in azimuth order (0 = North, clockwise).
+const COMPASS_KEYS = ['dirN', 'dirNE', 'dirE', 'dirSE', 'dirS', 'dirSW', 'dirW', 'dirNW'];
+
+function formatCompass(deg) {
+  const idx = Math.round(deg / 45) % 8;
+  return I18n.t('compassVal', { deg, dir: I18n.t(COMPASS_KEYS[idx]) });
+}
 
 function formatCurrency(metrics) {
   if (AppState.currency === 'IDR') {
@@ -33,6 +43,11 @@ function formatCurrency(metrics) {
 
 function updateAll() {
   // Update labels
+  document.getElementById('val-orientation').textContent = formatCompass(AppState.orientation);
+  document.getElementById('val-wind').textContent = formatCompass(AppState.windDirection);
+  document.getElementById('legend-wind').textContent = I18n.t('windLegend', { deg: AppState.windDirection });
+  const sidebarHidden = document.getElementById('sidebar').classList.contains('hidden');
+  document.getElementById('sidebar-toggle-label').textContent = I18n.t(sidebarHidden ? 'showMenu' : 'hideMenu');
   document.getElementById('val-roof-length').textContent = `${AppState.roofLength} m`;
   document.getElementById('val-roof-width').textContent = `${AppState.roofWidth} m`;
   document.getElementById('val-roof-tilt').textContent = `${AppState.roofTilt}°`;
@@ -49,6 +64,7 @@ function updateAll() {
   // Rebuild 3D Scene
   const { activePanelsCount, rafterLength } = Scene3D.buildScene(AppState);
   const elevDeg = Scene3D.updateSunPosition(AppState.sunHour);
+  Scene3D.setWindDirection(AppState.windDirection);
 
   document.getElementById('hud-slope-info').textContent = I18n.t('rafterSlope', { v: rafterLength.toFixed(2) });
   document.getElementById('hud-sun-elevation').textContent = I18n.t('sunElevation', { v: elevDeg });
@@ -88,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   bindInput('roof-type', 'roofType', String);
+  bindInput('orientation', 'orientation', parseFloat);
   bindInput('roof-length', 'roofLength', parseFloat);
   bindInput('roof-width', 'roofWidth', parseFloat);
   bindInput('roof-tilt', 'roofTilt', parseFloat);
@@ -101,6 +118,14 @@ document.addEventListener('DOMContentLoaded', () => {
   bindInput('site-location', 'siteLocation', String);
   bindInput('bess-kwh', 'bessKwh', parseInt);
   bindInput('sun-hour', 'sunHour', parseFloat);
+  bindInput('wind-direction', 'windDirection', parseFloat);
+
+  // Sidebar Collapse Toggle (workspace expands to full width)
+  document.getElementById('sidebar-toggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('hidden');
+    document.getElementById('workspace-main').classList.toggle('menu-hidden');
+    window.dispatchEvent(new Event('resize'));
+  });
 
   // Clear Obstacles
   document.getElementById('clear-obstacles').addEventListener('click', () => {

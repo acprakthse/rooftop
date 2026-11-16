@@ -37,3 +37,10 @@ input[type="range"] {
   background: #e2e8f0;
   cursor: pointer;
 }
+
+/* Collapsed sidebar: workspace spans the full grid width (desktop) */
+@media (min-width: 1024px) {
+  #workspace-main.menu-hidden {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}
