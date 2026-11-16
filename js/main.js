@@ -46,8 +46,18 @@ function updateAll() {
   document.getElementById('val-orientation').textContent = formatCompass(AppState.orientation);
   document.getElementById('val-wind').textContent = formatCompass(AppState.windDirection);
   document.getElementById('legend-wind').textContent = I18n.t('windLegend', { deg: AppState.windDirection });
-  const sidebarHidden = document.getElementById('sidebar').classList.contains('hidden');
-  document.getElementById('sidebar-toggle-label').textContent = I18n.t(sidebarHidden ? 'showMenu' : 'hideMenu');
+  // Icon rail tooltips follow the active language
+  document.querySelectorAll('.rail-btn[data-section]').forEach((btn) => {
+    const key = { 'section-01': 'railRoof', 'section-02': 'railPv', 'section-03': 'railBess' }[btn.dataset.section];
+    if (key) {
+      btn.title = I18n.t(key);
+      btn.setAttribute('aria-label', I18n.t(key));
+    }
+  });
+  const panelHidden = document.getElementById('layout-row').classList.contains('sidebar-collapsed');
+  const collapseBtn = document.getElementById('rail-collapse-btn');
+  collapseBtn.title = I18n.t(panelHidden ? 'railExpand' : 'railCollapse');
+  collapseBtn.setAttribute('aria-label', collapseBtn.title);
   document.getElementById('val-roof-length').textContent = `${AppState.roofLength} m`;
   document.getElementById('val-roof-width').textContent = `${AppState.roofWidth} m`;
   document.getElementById('val-roof-tilt').textContent = `${AppState.roofTilt}°`;
@@ -120,10 +130,20 @@ document.addEventListener('DOMContentLoaded', () => {
   bindInput('sun-hour', 'sunHour', parseFloat);
   bindInput('wind-direction', 'windDirection', parseFloat);
 
-  // Sidebar Collapse Toggle (workspace expands to full width)
-  document.getElementById('sidebar-toggle').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.toggle('hidden');
-    document.getElementById('workspace-main').classList.toggle('menu-hidden');
+  // Icon Rail: section shortcuts + panel collapse (Aurora-style sidebar)
+  const layoutRow = document.getElementById('layout-row');
+  document.querySelectorAll('.rail-btn[data-section]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.rail-btn[data-section]').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      layoutRow.classList.remove('sidebar-collapsed');
+      const section = document.getElementById(btn.dataset.section);
+      if (section) requestAnimationFrame(() => section.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      window.dispatchEvent(new Event('resize'));
+    });
+  });
+  document.getElementById('rail-collapse-btn').addEventListener('click', () => {
+    layoutRow.classList.toggle('sidebar-collapsed');
     window.dispatchEvent(new Event('resize'));
   });
 

@@ -7,7 +7,7 @@
   <!-- Google Fonts matching ardiancandra.com aesthetic -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -23,16 +23,14 @@
             brand: '#12579B'
           },
           fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            display: ['Space Grotesk', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace']
+            sans: ['Inter', 'system-ui', 'sans-serif']
           }
         }
       }
     }
   </script>
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=3" />
+  <link rel="stylesheet" href="css/style.css?v=4" />
   <!-- Three.js & OrbitControls -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -40,44 +38,55 @@
 <body class="bg-bgdeep text-slate-800 font-sans antialiased selection:bg-solar selection:text-slate-950 min-h-screen flex flex-col">
 
   <!-- TOP NAVIGATION BAR (ardiancandra.com themed) -->
-  <header class="border-b border-slate-200 bg-bgdeep/90 backdrop-blur-md sticky top-0 z-30">
-    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="font-display font-bold tracking-tight text-slate-900 text-base sm:text-lg">Ardian Candra Pratama</span>
-            <span class="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-brand text-white border border-brand">MSc KTH · Power Systems & PV/BESS</span>
-          </div>
-          <p class="text-xs text-slate-500" data-i18n="subtitle">Geometri Atap Surya 3D, Simulasi Bayangan & Studio Dispatch BESS</p>
+  <header class="border-b border-slate-200 bg-bgdeep sticky top-0 z-30 h-16 shrink-0">
+    <div class="h-full px-4 sm:px-6 flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <div class="flex items-center gap-2">
+          <span class="font-sans font-bold tracking-tight text-slate-900 text-base sm:text-lg truncate">Ardian Candra Pratama</span>
+          <span class="hidden md:inline-block shrink-0 text-[11px] font-sans uppercase px-2 py-0.5 rounded bg-brand text-white border border-brand">MSc KTH · Power Systems & PV/BESS</span>
         </div>
+        <p class="text-xs text-slate-500 truncate" data-i18n="subtitle">Geometri Atap Surya 3D, Simulasi Bayangan & Studio Dispatch BESS</p>
       </div>
 
-      <!-- Sidebar, Currency & Language Toggles -->
-      <div class="flex flex-wrap items-center gap-2">
-        <button id="sidebar-toggle" class="text-xs font-mono px-2.5 py-1.5 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition">
-          <span id="sidebar-toggle-label">Sembunyikan Menu</span>
-        </button>
-        <button id="currency-toggle" class="text-xs font-mono px-2.5 py-1.5 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition">
+      <!-- Currency & Language Toggles -->
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="currency-toggle" class="text-xs font-sans px-2.5 py-1.5 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition">
           <span data-i18n="currency">Mata Uang</span>: <span id="currency-label" class="text-brand font-bold">IDR (Rp)</span>
         </button>
-        <button id="language-toggle" class="text-xs font-mono px-2.5 py-1.5 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition">
+        <button id="language-toggle" class="text-xs font-sans px-2.5 py-1.5 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition">
           <span data-i18n="language">Bahasa</span>: <span id="language-label" class="text-brand font-bold">Indonesia</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- MAIN WORKSPACE -->
-  <main id="workspace-main" class="max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
+  <!-- MAIN WORKSPACE: icon rail + collapsible panel + workspace -->
+  <div id="layout-row" class="flex flex-1 flex-col lg:flex-row items-start">
 
-    <!-- LEFT SIDEBAR: PARAMETERS (4 COLS) -->
-    <aside id="sidebar" class="lg:col-span-4 space-y-4 overflow-y-auto max-h-[calc(100vh-110px)] pr-1 custom-scroll">
+    <!-- ICON RAIL (desktop): section shortcuts + panel collapse -->
+    <nav id="icon-rail" class="hidden lg:flex flex-col items-center gap-1 w-[52px] shrink-0 sticky top-16 z-20 h-[calc(100vh-64px)] py-3 border-r border-slate-200 bg-white">
+      <button data-section="section-01" class="rail-btn active w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="Arsitektur Atap" aria-label="Arsitektur Atap">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>
+      </button>
+      <button data-section="section-02" class="rail-btn w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="Array PV Surya" aria-label="Array PV Surya">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 12h18"/><path d="M9 5v14"/><path d="M15 5v14"/></svg>
+      </button>
+      <button data-section="section-03" class="rail-btn w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="BESS & Surya" aria-label="BESS & Surya">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="17" height="9" rx="2"/><path d="M22 11v3"/><path d="M6 11v3"/><path d="M10 11v3"/></svg>
+      </button>
+      <button id="rail-collapse-btn" class="rail-btn mt-auto w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="Sembunyikan panel" aria-label="Sembunyikan panel">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+    </nav>
+
+    <!-- LEFT SIDEBAR: PARAMETERS -->
+    <aside id="sidebar" class="w-full lg:w-[360px] lg:shrink-0 lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] lg:overflow-y-auto custom-scroll lg:border-r border-slate-200 bg-white">
 
       <!-- SECTION 01: ROOFTOP ARCHITECTURE -->
-      <section class="bg-bgcard border border-slate-200 rounded-xl p-4 shadow-lg">
+      <section id="section-01" class="p-4 border-b border-slate-200">
         <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-mono uppercase tracking-wider text-brand font-semibold" data-i18n="sec01">01 · ARSITEKTUR ATAP</span>
-          <span class="text-[11px] font-mono text-slate-500">3D Mesh Generator</span>
+          <span class="text-[11px] font-sans uppercase tracking-wider text-slate-500 font-semibold" data-i18n="sec01">01 · ARSITEKTUR ATAP</span>
+          <span class="text-[11px] font-sans text-slate-400">3D Mesh Generator</span>
         </div>
 
         <div class="space-y-3">
@@ -95,7 +104,7 @@
           <div>
             <div class="flex justify-between text-xs mb-1">
               <span class="text-slate-500" data-i18n="orientationLabel">Orientasi Bangunan</span>
-              <span id="val-orientation" class="font-mono text-brand">180° · Selatan</span>
+              <span id="val-orientation" class="font-sans text-brand">180° · Selatan</span>
             </div>
             <input id="orientation" type="range" min="0" max="355" step="5" value="180" class="w-full accent-[#F5E214]" />
             <p class="text-[11px] text-slate-500 mt-1" data-i18n="orientationHint">Arah hadap atap utama · 0° = Utara, 90° = Timur</p>
@@ -105,14 +114,14 @@
             <div>
               <div class="flex justify-between text-xs mb-1">
                 <span class="text-slate-500" data-i18n="roofLength">Panjang Atap (X)</span>
-                <span id="val-roof-length" class="font-mono text-brand">24 m</span>
+                <span id="val-roof-length" class="font-sans text-brand">24 m</span>
               </div>
               <input id="roof-length" type="range" min="10" max="50" step="1" value="24" class="w-full accent-[#F5E214]" />
             </div>
             <div>
               <div class="flex justify-between text-xs mb-1">
                 <span class="text-slate-500" data-i18n="roofWidth">Lebar Atap (Y)</span>
-                <span id="val-roof-width" class="font-mono text-brand">14 m</span>
+                <span id="val-roof-width" class="font-sans text-brand">14 m</span>
               </div>
               <input id="roof-width" type="range" min="8" max="32" step="1" value="14" class="w-full accent-[#F5E214]" />
             </div>
@@ -122,14 +131,14 @@
             <div>
               <div class="flex justify-between text-xs mb-1">
                 <span class="text-slate-500" data-i18n="roofTilt">Kemiringan Atap (Tilt)</span>
-                <span id="val-roof-tilt" class="font-mono text-brand">18°</span>
+                <span id="val-roof-tilt" class="font-sans text-brand">18°</span>
               </div>
               <input id="roof-tilt" type="range" min="0" max="40" step="1" value="18" class="w-full accent-[#F5E214]" />
             </div>
             <div>
               <div class="flex justify-between text-xs mb-1">
                 <span class="text-slate-500" data-i18n="wallHeight">Tinggi Gedung</span>
-                <span id="val-wall-height" class="font-mono text-slate-700">6.0 m</span>
+                <span id="val-wall-height" class="font-sans text-slate-700">6.0 m</span>
               </div>
               <input id="wall-height" type="range" min="3" max="16" step="0.5" value="6" class="w-full accent-[#12579B]" />
             </div>
@@ -138,7 +147,7 @@
           <div>
             <div class="flex justify-between text-xs mb-1">
               <span class="text-slate-500" data-i18n="setback">Perimeter Setback (Jarak Tepi Aman)</span>
-              <span id="val-setback" class="font-mono text-slate-700">0.8 m</span>
+              <span id="val-setback" class="font-sans text-slate-700">0.8 m</span>
             </div>
             <input id="roof-setback" type="range" min="0.3" max="2.5" step="0.1" value="0.8" class="w-full accent-[#F5E214]" />
           </div>
@@ -146,10 +155,10 @@
       </section>
 
       <!-- SECTION 02: SOLAR PV ARRAY SPEC -->
-      <section class="bg-bgcard border border-slate-200 rounded-xl p-4 shadow-lg">
+      <section id="section-02" class="p-4 border-b border-slate-200">
         <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-mono uppercase tracking-wider text-brand font-semibold" data-i18n="sec02">02 · SPESIFIKASI ARRAY PV SURYA</span>
-          <span class="text-[11px] font-mono text-slate-500">IEC 61215 / 61730</span>
+          <span class="text-[11px] font-sans uppercase tracking-wider text-slate-500 font-semibold" data-i18n="sec02">02 · SPESIFIKASI ARRAY PV SURYA</span>
+          <span class="text-[11px] font-sans text-slate-400">IEC 61215 / 61730</span>
         </div>
 
         <div class="space-y-3">
@@ -175,31 +184,31 @@
             <div>
               <div class="flex justify-between text-xs mb-1">
                 <span class="text-slate-500" data-i18n="rowGap">Jarak Antar-Baris</span>
-                <span id="val-row-gap" class="font-mono text-slate-700">0.35 m</span>
+                <span id="val-row-gap" class="font-sans text-slate-700">0.35 m</span>
               </div>
               <input id="row-gap" type="range" min="0.05" max="1.8" step="0.05" value="0.35" class="w-full accent-[#F5E214]" />
             </div>
             <div>
               <div class="flex justify-between text-xs mb-1">
                 <span class="text-slate-500" data-i18n="rackTilt">Sudut Racking (Flat)</span>
-                <span id="val-rack-tilt" class="font-mono text-slate-700">12°</span>
+                <span id="val-rack-tilt" class="font-sans text-slate-700">12°</span>
               </div>
               <input id="rack-tilt" type="range" min="5" max="25" step="1" value="12" class="w-full accent-[#F5E214]" />
             </div>
           </div>
 
           <div class="pt-1 flex items-center justify-between text-xs text-slate-500 border-t border-slate-200">
-            <span><span data-i18n="obstacleLabel">Obstacle / Modul Nonaktif:</span> <strong id="obstacle-count" class="text-brand font-mono">0</strong></span>
-            <button id="clear-obstacles" class="text-xs font-mono text-bess hover:underline" data-i18n="resetObstacles">Reset Obstacle</button>
+            <span><span data-i18n="obstacleLabel">Obstacle / Modul Nonaktif:</span> <strong id="obstacle-count" class="text-brand font-sans">0</strong></span>
+            <button id="clear-obstacles" class="text-xs font-sans text-bess hover:underline" data-i18n="resetObstacles">Reset Obstacle</button>
           </div>
         </div>
       </section>
 
       <!-- SECTION 03: BESS STORAGE & SUN PATH -->
-      <section class="bg-bgcard border border-slate-200 rounded-xl p-4 shadow-lg">
+      <section id="section-03" class="p-4">
         <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-mono uppercase tracking-wider text-bess font-semibold" data-i18n="sec03">03 · GEOMETRI BESS & SURYA</span>
-          <span class="text-[11px] font-mono text-slate-500">Pyomo MILP Sizing</span>
+          <span class="text-[11px] font-sans uppercase tracking-wider text-slate-500 font-semibold" data-i18n="sec03">03 · GEOMETRI BESS & SURYA</span>
+          <span class="text-[11px] font-sans text-slate-400">Pyomo MILP Sizing</span>
         </div>
 
         <div class="space-y-3">
@@ -225,7 +234,7 @@
           <div>
             <div class="flex justify-between text-xs mb-1">
               <span class="text-slate-500" data-i18n="bessKwh">Kapasitas BESS (Usable Energy)</span>
-              <span id="val-bess-kwh" class="font-mono text-bess">120 kWh</span>
+              <span id="val-bess-kwh" class="font-sans text-bess">120 kWh</span>
             </div>
             <input id="bess-kwh" type="range" min="0" max="500" step="10" value="120" class="w-full accent-[#12579B]" />
           </div>
@@ -233,7 +242,7 @@
           <div>
             <div class="flex justify-between text-xs mb-1">
               <span class="text-slate-500" data-i18n="sunHour">Jam Surya (3D Sun Raycasting)</span>
-              <span id="val-sun-hour" class="font-mono text-brand">10:30</span>
+              <span id="val-sun-hour" class="font-sans text-brand">10:30</span>
             </div>
             <input id="sun-hour" type="range" min="6.5" max="17.5" step="0.25" value="10.5" class="w-full accent-[#F5E214]" />
           </div>
@@ -241,7 +250,7 @@
           <div>
             <div class="flex justify-between text-xs mb-1">
               <span class="text-slate-500" data-i18n="windLabel">Arah Angin</span>
-              <span id="val-wind" class="font-mono text-brand">90° · Timur</span>
+              <span id="val-wind" class="font-sans text-brand">90° · Timur</span>
             </div>
             <input id="wind-direction" type="range" min="0" max="355" step="5" value="90" class="w-full accent-[#12579B]" />
             <p class="text-[11px] text-slate-500 mt-1" data-i18n="windHint">Arah tiupan angin, ditunjukkan panah di viewport 3D</p>
@@ -251,44 +260,44 @@
 
     </aside>
 
-    <!-- RIGHT WORKSPACE: KPI CARDS + 3D VIEWPORT + 24H DISPATCH (8 COLS) -->
-    <div class="lg:col-span-8 flex flex-col gap-4">
+    <!-- RIGHT WORKSPACE: KPI CARDS + 3D VIEWPORT + 24H DISPATCH -->
+    <main id="workspace-main" class="flex-1 min-w-0 w-full p-4 sm:p-5 flex flex-col gap-4">
 
       <!-- KPI METRICS ROW -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="bg-bgcard border border-slate-200 rounded-xl p-3.5">
-          <div class="text-[11px] font-mono text-slate-500 uppercase" data-i18n="kpiKwp">Kapasitas PV Terpasang</div>
+          <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="kpiKwp">Kapasitas PV Terpasang</div>
           <div class="mt-1 flex items-baseline gap-1.5">
-            <span id="kpi-kwp" class="text-2xl font-display font-bold text-brand">0.0</span>
-            <span class="text-xs font-mono text-slate-500">kWp</span>
+            <span id="kpi-kwp" class="text-2xl font-sans font-bold text-brand">0.0</span>
+            <span class="text-xs font-sans text-slate-500">kWp</span>
           </div>
-          <div id="kpi-panels" class="text-[11px] font-mono text-slate-500 mt-1">0 modul aktif</div>
+          <div id="kpi-panels" class="text-[11px] font-sans text-slate-500 mt-1">0 modul aktif</div>
         </div>
 
         <div class="bg-bgcard border border-slate-200 rounded-xl p-3.5">
-          <div class="text-[11px] font-mono text-slate-500 uppercase" data-i18n="kpiYield">Hasil Energi Tahunan</div>
+          <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="kpiYield">Hasil Energi Tahunan</div>
           <div class="mt-1 flex items-baseline gap-1.5">
-            <span id="kpi-yield" class="text-2xl font-display font-bold text-slate-900">0</span>
-            <span class="text-xs font-mono text-slate-500" data-i18n="kpiYieldUnit">MWh/thn</span>
+            <span id="kpi-yield" class="text-2xl font-sans font-bold text-slate-900">0</span>
+            <span class="text-xs font-sans text-slate-500" data-i18n="kpiYieldUnit">MWh/thn</span>
           </div>
-          <div id="kpi-specific" class="text-[11px] font-mono text-slate-500 mt-1">Rasio area &amp; cos(θ) aktif</div>
+          <div id="kpi-specific" class="text-[11px] font-sans text-slate-500 mt-1">Rasio area &amp; cos(θ) aktif</div>
         </div>
 
         <div class="bg-bgcard border border-slate-200 rounded-xl p-3.5">
-          <div class="text-[11px] font-mono text-slate-500 uppercase" data-i18n="kpiBess">Spesifikasi Penyimpanan BESS</div>
+          <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="kpiBess">Spesifikasi Penyimpanan BESS</div>
           <div class="mt-1 flex items-baseline gap-1.5">
-            <span id="kpi-bess" class="text-2xl font-display font-bold text-bess">120</span>
-            <span class="text-xs font-mono text-slate-500">kWh</span>
+            <span id="kpi-bess" class="text-2xl font-sans font-bold text-bess">120</span>
+            <span class="text-xs font-sans text-slate-500">kWh</span>
           </div>
-          <div id="kpi-autonomy" class="text-[11px] font-mono text-slate-500 mt-1">LFP · 92% Round-Trip</div>
+          <div id="kpi-autonomy" class="text-[11px] font-sans text-slate-500 mt-1">LFP · 92% Round-Trip</div>
         </div>
 
         <div class="bg-bgcard border border-slate-200 rounded-xl p-3.5">
-          <div class="text-[11px] font-mono text-slate-500 uppercase" data-i18n="kpiSavings">Penghematan Tahunan &amp; CO₂</div>
+          <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="kpiSavings">Penghematan Tahunan &amp; CO₂</div>
           <div class="mt-1 flex items-baseline gap-1.5">
-            <span id="kpi-savings" class="text-xl font-display font-bold text-brand">Rp 0</span>
+            <span id="kpi-savings" class="text-xl font-sans font-bold text-brand">Rp 0</span>
           </div>
-          <div id="kpi-co2" class="text-[11px] font-mono text-slate-500 mt-1">0,0 tCO₂/thn dihindari</div>
+          <div id="kpi-co2" class="text-[11px] font-sans text-slate-500 mt-1">0,0 tCO₂/thn dihindari</div>
         </div>
       </div>
 
@@ -296,13 +305,13 @@
       <div class="relative bg-bgcard border border-slate-200 rounded-xl overflow-hidden h-[420px] sm:h-[460px] shadow-xl">
         <!-- Top Overlay HUD -->
         <div class="absolute top-3 left-3 z-10 flex flex-wrap items-center gap-2 pointer-events-none">
-          <span class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-300 text-[11px] font-mono text-brand">
+          <span class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-300 text-[11px] font-sans text-brand">
             3D INTERACTIVE ROOFTOP · THREE.JS WEBGL
           </span>
-          <span id="hud-slope-info" class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-200 text-[11px] font-mono text-slate-600">
+          <span id="hud-slope-info" class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-200 text-[11px] font-sans text-slate-600">
             Lebar Kemiringan Kasau: 7.36 m
           </span>
-          <span class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-200 text-[11px] font-mono text-slate-600 flex items-center gap-2">
+          <span class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-200 text-[11px] font-sans text-slate-600 flex items-center gap-2">
             <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#12579B] inline-block"></span><span data-i18n="northLegend">Utara</span></span>
             <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#D97706] inline-block"></span><span id="legend-wind">Angin 90°</span></span>
           </span>
@@ -310,13 +319,13 @@
 
         <!-- Camera Preset Controls -->
         <div class="absolute top-3 right-3 z-10 flex items-center gap-1.5">
-          <button data-cam="iso" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-300 text-[11px] font-mono text-slate-700 transition">Iso 3D</button>
-          <button data-cam="top" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-300 text-[11px] font-mono text-slate-700 transition" data-i18n="camTop">Denah Atas</button>
-          <button data-cam="side" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-300 text-[11px] font-mono text-slate-700 transition" data-i18n="camSide">Elevasi</button>
+          <button data-cam="iso" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-300 text-[11px] font-sans text-slate-700 transition">Iso 3D</button>
+          <button data-cam="top" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-300 text-[11px] font-sans text-slate-700 transition" data-i18n="camTop">Denah Atas</button>
+          <button data-cam="side" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-300 text-[11px] font-sans text-slate-700 transition" data-i18n="camSide">Elevasi</button>
         </div>
 
         <!-- Bottom Hint Overlay -->
-        <div class="absolute bottom-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none text-[11px] font-mono text-slate-500">
+        <div class="absolute bottom-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none text-[11px] font-sans text-slate-500">
           <span class="bg-bgdeep/85 px-2.5 py-1 rounded border border-slate-200">
             <span data-i18n="hintText">Drag: Putar 3D · Scroll: Zoom · </span><strong class="text-brand" data-i18n="hintStrong">Klik Modul PV: Toggle Obstacle (Cerobong/Skylight)</strong>
           </span>
@@ -333,10 +342,10 @@
       <section class="bg-bgcard border border-slate-200 rounded-xl p-4">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div>
-            <span class="text-xs font-mono uppercase tracking-wider text-bess font-semibold" data-i18n="sec04">04 · SIMULASI DISPATCH ROLLING-HORIZON (24 JAM)</span>
+            <span class="text-xs font-sans uppercase tracking-wider text-bess font-semibold" data-i18n="sec04">04 · SIMULASI DISPATCH ROLLING-HORIZON (24 JAM)</span>
             <p class="text-xs text-slate-500" data-i18n="sec04Desc">Profil pembangkitan PV, pengisian/pengosongan BESS, dan pemangkasan beban puncak (Peak Shaving)</p>
           </div>
-          <div class="flex items-center gap-4 text-xs font-mono">
+          <div class="flex items-center gap-4 text-xs font-sans">
             <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#D97706] inline-block"></span>Solar PV (kW)</span>
             <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-bess inline-block"></span>BESS SoC (%)</span>
             <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block"></span><span data-i18n="legendLoad">Beban Site (kW)</span></span>
@@ -347,13 +356,13 @@
         </div>
       </section>
 
-    </div>
-  </main>
+    </main>
+  </div>
 
   <!-- Modular JS Scripts -->
-  <script src="js/energy-model.js?v=3"></script>
-  <script src="js/scene3d.js?v=3"></script>
-  <script src="js/i18n.js?v=3"></script>
-  <script src="js/main.js?v=3"></script>
+  <script src="js/energy-model.js?v=4"></script>
+  <script src="js/scene3d.js?v=4"></script>
+  <script src="js/i18n.js?v=4"></script>
+  <script src="js/main.js?v=4"></script>
 </body>
 </html>

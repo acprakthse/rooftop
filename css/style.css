@@ -38,9 +38,30 @@ input[type="range"] {
   cursor: pointer;
 }
 
-/* Collapsed sidebar: workspace spans the full grid width (desktop) */
+/* Collapsed sidebar (desktop only): panel hides, workspace expands.
+   Below lg the sidebar is always visible, stacked above the workspace. */
 @media (min-width: 1024px) {
-  #workspace-main.menu-hidden {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+  #layout-row.sidebar-collapsed #sidebar {
+    display: none;
   }
+}
+
+/* Icon rail: active section button (grey highlight, brand blue icon) */
+.rail-btn.active {
+  background-color: #F2F4F5;
+  color: #12579B;
+}
+
+/* Collapse chevron flips direction when the panel is hidden */
+#rail-collapse-btn svg {
+  transition: transform 0.2s ease;
+}
+#layout-row.sidebar-collapsed #rail-collapse-btn svg {
+  transform: rotate(180deg);
+}
+
+/* Tabular figures keep slider/KPI values from jittering as they change */
+span[id^="val-"],
+span[id^="kpi-"] {
+  font-variant-numeric: tabular-nums;
 }

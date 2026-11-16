@@ -155,7 +155,7 @@ const EnergyModel = {
 
     // X-axis hour labels
     ctx.fillStyle = '#64748b';
-    ctx.font = '10px "JetBrains Mono", monospace';
+    ctx.font = '10px "Inter", system-ui, sans-serif';
     [0, 6, 12, 18, 23].forEach(hr => {
       const x = toX(hr);
       ctx.fillText(String(hr).padStart(2, '0') + ':00', x - 14, h - 6);
