@@ -208,7 +208,7 @@
       <section id="section-03" class="p-4">
         <div class="flex items-center justify-between mb-3">
           <span class="text-[11px] font-sans uppercase tracking-wider text-slate-500 font-semibold" data-i18n="sec03">03 · GEOMETRI BESS & SURYA</span>
-          <span class="text-[11px] font-sans text-slate-400">Pyomo MILP Sizing</span>
+          <span class="text-[11px] font-sans text-slate-400" data-i18n="sizingLabel">Sizing Sederhana (Rule-Based)</span>
         </div>
 
         <div class="space-y-3">
@@ -302,7 +302,7 @@
       </div>
 
       <!-- 3D WEBGL VIEWPORT -->
-      <div class="relative bg-bgcard border border-slate-200 rounded-xl overflow-hidden h-[420px] sm:h-[460px] shadow-xl">
+      <div class="relative bg-bgcard border border-slate-200 rounded-xl overflow-hidden h-[520px] sm:h-[580px] lg:h-[640px] shadow-xl">
         <!-- Top Overlay HUD -->
         <div class="absolute top-3 left-3 z-10 flex flex-wrap items-center gap-2 pointer-events-none">
           <span class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-300 text-[11px] font-sans text-brand">
@@ -338,11 +338,11 @@
         <div id="three-canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
       </div>
 
-      <!-- SECTION 04: 24-HOUR ROLLING-HORIZON DISPATCH SIMULATION -->
+      <!-- SECTION 04: 24-HOUR DISPATCH PROFILE (SIMPLE RULE-BASED) -->
       <section class="bg-bgcard border border-slate-200 rounded-xl p-4">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div>
-            <span class="text-xs font-sans uppercase tracking-wider text-bess font-semibold" data-i18n="sec04">04 · SIMULASI DISPATCH ROLLING-HORIZON (24 JAM)</span>
+            <span class="text-xs font-sans uppercase tracking-wider text-bess font-semibold" data-i18n="sec04">04 · PROFIL DISPATCH 24 JAM (ATURAN SEDERHANA)</span>
             <p class="text-xs text-slate-500" data-i18n="sec04Desc">Profil pembangkitan PV, pengisian/pengosongan BESS, dan pemangkasan beban puncak (Peak Shaving)</p>
           </div>
           <div class="flex items-center gap-4 text-xs font-sans">
@@ -360,9 +360,9 @@
   </div>
 
   <!-- Modular JS Scripts -->
-  <script src="js/energy-model.js?v=4"></script>
+  <script src="js/energy-model.js?v=5"></script>
   <script src="js/scene3d.js?v=4"></script>
-  <script src="js/i18n.js?v=4"></script>
+  <script src="js/i18n.js?v=5"></script>
   <script src="js/main.js?v=4"></script>
 </body>
 </html>
