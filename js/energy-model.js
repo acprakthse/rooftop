@@ -119,37 +119,37 @@ const EnergyModel = {
     const toYKw = (val) => padT + plotH - (val / maxKw) * plotH;
     const toYSoc = (val) => padT + plotH - (val / 100) * plotH;
 
-    // 1. Draw PV Area (Solar Amber)
+    // 1. Draw PV Area (Brand Yellow)
     ctx.beginPath();
     ctx.moveTo(toX(0), padT + plotH);
     pvProfile.forEach((v, i) => ctx.lineTo(toX(i), toYKw(v)));
     ctx.lineTo(toX(23), padT + plotH);
     ctx.closePath();
     const gradPv = ctx.createLinearGradient(0, padT, 0, padT + plotH);
-    gradPv.addColorStop(0, 'rgba(245, 158, 11, 0.42)');
-    gradPv.addColorStop(1, 'rgba(245, 158, 11, 0.02)');
+    gradPv.addColorStop(0, 'rgba(245, 226, 20, 0.42)');
+    gradPv.addColorStop(1, 'rgba(245, 226, 20, 0.02)');
     ctx.fillStyle = gradPv;
     ctx.fill();
 
     ctx.beginPath();
     pvProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYKw(v)) : ctx.lineTo(toX(i), toYKw(v))));
-    ctx.strokeStyle = '#f59e0b';
+    ctx.strokeStyle = '#F5E214';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // 2. Draw Load Line (Emerald)
+    // 2. Draw Load Line (Light Grey)
     ctx.beginPath();
     loadProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYKw(v)) : ctx.lineTo(toX(i), toYKw(v))));
-    ctx.strokeStyle = '#10b981';
+    ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 1.8;
     ctx.setLineDash([4, 3]);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 3. Draw BESS SoC Line (Cyan)
+    // 3. Draw BESS SoC Line (Brand Blue)
     ctx.beginPath();
     socProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYSoc(v)) : ctx.lineTo(toX(i), toYSoc(v))));
-    ctx.strokeStyle = '#38bdf8';
+    ctx.strokeStyle = '#4A90D9';
     ctx.lineWidth = 2;
     ctx.stroke();
 

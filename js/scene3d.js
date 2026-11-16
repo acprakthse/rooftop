@@ -60,7 +60,7 @@ const Scene3D = {
 
     // Glowing Sun Indicator Sphere
     const sunGeo = new THREE.SphereGeometry(1.1, 20, 20);
-    const sunMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+    const sunMat = new THREE.MeshBasicMaterial({ color: 0xF5E214 });
     this.sunSphere = new THREE.Mesh(sunGeo, sunMat);
     this.scene.add(this.sunSphere);
 
@@ -181,11 +181,11 @@ const Scene3D = {
     wallMesh.receiveShadow = true;
     this.rootGroup.add(wallMesh);
 
-    // 2. BESS Container Unit next to building (Cyan accent)
+    // 2. BESS Container Unit next to building (Brand blue)
     if (state.bessKwh > 0) {
       const bessLen = Math.min(8, Math.max(2.5, state.bessKwh / 50));
       const bessGeo = new THREE.BoxGeometry(bessLen, 2.5, 2.4);
-      const bessMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, roughness: 0.4, metalness: 0.3 });
+      const bessMat = new THREE.MeshStandardMaterial({ color: 0x12579B, roughness: 0.4, metalness: 0.3 });
       const bessMesh = new THREE.Mesh(bessGeo, bessMat);
       bessMesh.position.set(L / 2 + 3.2, 1.25, -W / 4);
       bessMesh.castShadow = true;
@@ -299,7 +299,7 @@ const Scene3D = {
       metalness: 0.65
     });
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.5 });
-    const obstacleMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.4 });
+    const obstacleMat = new THREE.MeshStandardMaterial({ color: 0xF5E214, roughness: 0.4 });
 
     let count = 0;
 

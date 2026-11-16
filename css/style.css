@@ -3,16 +3,16 @@
   --bg-deep: #070a12;
   --bg-card: #0d1322;
   --bg-panel: #121a2d;
-  --accent-solar: #f59e0b;
-  --accent-bess: #38bdf8;
-  --accent-emerald: #10b981;
+  --accent-solar: #F5E214;
+  --accent-bess: #4A90D9;
+  --accent-brand: #12579B;
 }
 
 body {
   background-color: var(--bg-deep);
   background-image: 
-    radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.06), transparent 35%),
-    radial-gradient(circle at 85% 80%, rgba(56, 189, 248, 0.06), transparent 35%);
+    radial-gradient(circle at 15% 15%, rgba(245, 226, 20, 0.06), transparent 35%),
+    radial-gradient(circle at 85% 80%, rgba(74, 144, 217, 0.06), transparent 35%);
 }
 
 /* Custom Scrollbar for Sidebar */

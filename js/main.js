@@ -1,6 +1,6 @@
 /**
  * main.js
- * Application Controller connecting UI Inputs, Presets, 3D WebGL Scene, and KPI Dashboard
+ * Application Controller connecting UI Inputs, 3D WebGL Scene, and KPI Dashboard
  */
 
 const AppState = {
@@ -24,9 +24,10 @@ const AppState = {
 function formatCurrency(metrics) {
   if (AppState.currency === 'IDR') {
     const juta = metrics.savingsIdr / 1e6;
-    return `Rp ${juta.toFixed(1)} Jt/thn`;
+    return I18n.t('savingsIdr', { v: juta.toFixed(1) });
   } else {
-    return `€ ${Math.round(metrics.savingsEur).toLocaleString()}/yr`;
+    const amount = Math.round(metrics.savingsEur).toLocaleString(I18n.lang === 'id' ? 'id-ID' : 'en-US');
+    return I18n.t('savingsEur', { v: amount });
   }
 }
 
@@ -49,27 +50,29 @@ function updateAll() {
   const { activePanelsCount, rafterLength } = Scene3D.buildScene(AppState);
   const elevDeg = Scene3D.updateSunPosition(AppState.sunHour);
 
-  document.getElementById('hud-slope-info').textContent = `Rafter Slope Width: ${rafterLength.toFixed(2)} m`;
-  document.getElementById('hud-sun-elevation').textContent = `Sun Elevation: ${elevDeg}°`;
+  document.getElementById('hud-slope-info').textContent = I18n.t('rafterSlope', { v: rafterLength.toFixed(2) });
+  document.getElementById('hud-sun-elevation').textContent = I18n.t('sunElevation', { v: elevDeg });
   document.getElementById('obstacle-count').textContent = Scene3D.disabledSlots.size;
 
   // Calculate Energy & Financial KPIs
   const metrics = EnergyModel.calculateMetrics(AppState, activePanelsCount);
 
   document.getElementById('kpi-kwp').textContent = metrics.kwp.toFixed(1);
-  document.getElementById('kpi-panels').textContent = `${activePanelsCount} active modules (${AppState.panelWp} Wp)`;
+  document.getElementById('kpi-panels').textContent = I18n.t('activeModules', { n: activePanelsCount, wp: AppState.panelWp });
   document.getElementById('kpi-yield').textContent = metrics.annualMwh.toFixed(1);
-  document.getElementById('kpi-specific').textContent = `PR ${(metrics.pr * 100).toFixed(0)}% · ${(metrics.dailyKwh).toFixed(0)} kWh/day`;
+  document.getElementById('kpi-specific').textContent = I18n.t('specificYield', { pr: (metrics.pr * 100).toFixed(0), kwh: metrics.dailyKwh.toFixed(0) });
   document.getElementById('kpi-bess').textContent = AppState.bessKwh;
   document.getElementById('kpi-autonomy').textContent = `${metrics.chem.label} · ${(metrics.chem.rte * 100).toFixed(0)}% RTE`;
   document.getElementById('kpi-savings').textContent = formatCurrency(metrics);
-  document.getElementById('kpi-co2').textContent = `${metrics.co2Tonnes.toFixed(1)} tCO₂/yr avoided`;
+  document.getElementById('kpi-co2').textContent = I18n.t('co2Avoided', { v: metrics.co2Tonnes.toFixed(1) });
 
   // Draw 24h Dispatch Chart
   EnergyModel.drawDispatchChart(document.getElementById('dispatch-chart'), AppState, metrics);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  I18n.init();
+
   Scene3D.init('three-canvas-container', () => {
     updateAll();
   });
@@ -112,86 +115,17 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAll();
   });
 
+  // Language Toggle (Indonesia / English)
+  document.getElementById('language-toggle').addEventListener('click', () => {
+    I18n.setLanguage(I18n.lang === 'id' ? 'en' : 'id');
+    updateAll();
+  });
+
   // Camera Presets
   document.querySelectorAll('.cam-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       Scene3D.setCameraPreset(btn.dataset.cam);
     });
-  });
-
-  // Portfolio Project Presets
-  const applyPreset = (cfg) => {
-    Object.assign(AppState, cfg);
-    document.getElementById('roof-type').value = AppState.roofType;
-    document.getElementById('roof-length').value = AppState.roofLength;
-    document.getElementById('roof-width').value = AppState.roofWidth;
-    document.getElementById('roof-tilt').value = AppState.roofTilt;
-    document.getElementById('wall-height').value = AppState.wallHeight;
-    document.getElementById('roof-setback').value = AppState.roofSetback;
-    document.getElementById('panel-orientation').value = AppState.panelOrientation;
-    document.getElementById('panel-wp').value = AppState.panelWp;
-    document.getElementById('row-gap').value = AppState.rowGap;
-    document.getElementById('rack-tilt').value = AppState.rackTilt;
-    document.getElementById('bess-chemistry').value = AppState.bessChemistry;
-    document.getElementById('site-location').value = AppState.siteLocation;
-    document.getElementById('bess-kwh').value = AppState.bessKwh;
-    Scene3D.disabledSlots.clear();
-    updateAll();
-  };
-
-  document.getElementById('preset-oskarshamn').addEventListener('click', () => {
-    applyPreset({
-      roofType: 'gable-dual',
-      roofLength: 32,
-      roofWidth: 16,
-      roofTilt: 22,
-      wallHeight: 7.5,
-      panelOrientation: 'portrait',
-      panelWp: 610,
-      rowGap: 0.3,
-      bessChemistry: 'LFP',
-      siteLocation: 'oskarshamn',
-      bessKwh: 240,
-      currency: 'EUR'
-    });
-    document.getElementById('currency-label').textContent = 'EUR (€)';
-  });
-
-  document.getElementById('preset-pln').addEventListener('click', () => {
-    applyPreset({
-      roofType: 'flat-tilt',
-      roofLength: 28,
-      roofWidth: 18,
-      roofTilt: 0,
-      rackTilt: 12,
-      wallHeight: 8.0,
-      panelOrientation: 'landscape',
-      panelWp: 670,
-      rowGap: 0.75,
-      bessChemistry: 'LFP',
-      siteLocation: 'jakarta',
-      bessKwh: 180,
-      currency: 'IDR'
-    });
-    document.getElementById('currency-label').textContent = 'IDR (Rp)';
-  });
-
-  document.getElementById('preset-moro').addEventListener('click', () => {
-    applyPreset({
-      roofType: 'hip',
-      roofLength: 22,
-      roofWidth: 14,
-      roofTilt: 16,
-      wallHeight: 5.0,
-      panelOrientation: 'portrait',
-      panelWp: 550,
-      rowGap: 0.3,
-      bessChemistry: 'VRFB',
-      siteLocation: 'riau',
-      bessKwh: 150,
-      currency: 'IDR'
-    });
-    document.getElementById('currency-label').textContent = 'IDR (Rp)';
   });
 
   window.addEventListener('resize', () => updateAll());
