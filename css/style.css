@@ -1,18 +1,18 @@
-/* Custom Styling matching ardiancandra.com dark engineering aesthetic */
+/* Custom Styling matching ardiancandra.com light engineering aesthetic */
 :root {
-  --bg-deep: #070a12;
-  --bg-card: #0d1322;
-  --bg-panel: #121a2d;
+  --bg-deep: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-panel: #F2F4F5;
   --accent-solar: #F5E214;
-  --accent-bess: #4A90D9;
+  --accent-bess: #12579B;
   --accent-brand: #12579B;
 }
 
 body {
   background-color: var(--bg-deep);
-  background-image: 
-    radial-gradient(circle at 15% 15%, rgba(245, 226, 20, 0.06), transparent 35%),
-    radial-gradient(circle at 85% 80%, rgba(74, 144, 217, 0.06), transparent 35%);
+  background-image:
+    radial-gradient(circle at 15% 15%, rgba(245, 226, 20, 0.05), transparent 35%),
+    radial-gradient(circle at 85% 80%, rgba(18, 87, 155, 0.05), transparent 35%);
 }
 
 /* Custom Scrollbar for Sidebar */
@@ -20,20 +20,20 @@ body {
   width: 6px;
 }
 .custom-scroll::-webkit-scrollbar-track {
-  background: #070a12;
+  background: #f1f5f9;
 }
 .custom-scroll::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #cbd5e1;
   border-radius: 3px;
 }
 .custom-scroll::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #94a3b8;
 }
 
 /* Range Input Polish */
 input[type="range"] {
   height: 5px;
   border-radius: 4px;
-  background: #1e293b;
+  background: #e2e8f0;
   cursor: pointer;
 }

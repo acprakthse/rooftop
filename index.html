@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" class="dark">
+<html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,15 +12,14 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
           colors: {
-            bgdeep: '#070a12',
-            bgcard: '#0d1322',
-            bgpanel: '#121a2d',
+            bgdeep: '#FFFFFF',
+            bgcard: '#FFFFFF',
+            bgpanel: '#F2F4F5',
             solar: '#F5E214',
-            bess: '#4A90D9',
+            bess: '#12579B',
             brand: '#12579B'
           },
           fontFamily: {
@@ -38,28 +37,28 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
-<body class="bg-bgdeep text-slate-100 font-sans antialiased selection:bg-solar selection:text-slate-950 min-h-screen flex flex-col">
+<body class="bg-bgdeep text-slate-800 font-sans antialiased selection:bg-solar selection:text-slate-950 min-h-screen flex flex-col">
 
   <!-- TOP NAVIGATION BAR (ardiancandra.com themed) -->
-  <header class="border-b border-slate-800/80 bg-bgdeep/90 backdrop-blur-md sticky top-0 z-30">
+  <header class="border-b border-slate-200 bg-bgdeep/90 backdrop-blur-md sticky top-0 z-30">
     <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
         <div>
           <div class="flex items-center gap-2">
-            <span class="font-display font-bold tracking-tight text-white text-base sm:text-lg">Ardian Candra Pratama</span>
+            <span class="font-display font-bold tracking-tight text-slate-900 text-base sm:text-lg">Ardian Candra Pratama</span>
             <span class="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-brand text-white border border-brand">MSc KTH · Power Systems & PV/BESS</span>
           </div>
-          <p class="text-xs text-slate-400" data-i18n="subtitle">Geometri Atap Surya 3D, Simulasi Bayangan & Studio Dispatch BESS</p>
+          <p class="text-xs text-slate-500" data-i18n="subtitle">Geometri Atap Surya 3D, Simulasi Bayangan & Studio Dispatch BESS</p>
         </div>
       </div>
 
       <!-- Currency & Language Toggles -->
       <div class="flex flex-wrap items-center gap-2">
-        <button id="currency-toggle" class="text-xs font-mono px-2.5 py-1.5 rounded border border-slate-700 bg-bgpanel text-slate-200 hover:border-solar transition">
-          <span data-i18n="currency">Mata Uang</span>: <span id="currency-label" class="text-solar font-bold">IDR (Rp)</span>
+        <button id="currency-toggle" class="text-xs font-mono px-2.5 py-1.5 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition">
+          <span data-i18n="currency">Mata Uang</span>: <span id="currency-label" class="text-brand font-bold">IDR (Rp)</span>
         </button>
-        <button id="language-toggle" class="text-xs font-mono px-2.5 py-1.5 rounded border border-slate-700 bg-bgpanel text-slate-200 hover:border-solar transition">
-          <span data-i18n="language">Bahasa</span>: <span id="language-label" class="text-solar font-bold">Indonesia</span>
+        <button id="language-toggle" class="text-xs font-mono px-2.5 py-1.5 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition">
+          <span data-i18n="language">Bahasa</span>: <span id="language-label" class="text-brand font-bold">Indonesia</span>
         </button>
       </div>
     </div>
@@ -72,16 +71,16 @@
     <aside class="lg:col-span-4 space-y-4 overflow-y-auto max-h-[calc(100vh-110px)] pr-1 custom-scroll">
 
       <!-- SECTION 01: ROOFTOP ARCHITECTURE -->
-      <section class="bg-bgcard border border-slate-800/90 rounded-xl p-4 shadow-lg">
+      <section class="bg-bgcard border border-slate-200 rounded-xl p-4 shadow-lg">
         <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-mono uppercase tracking-wider text-solar font-semibold" data-i18n="sec01">01 · ARSITEKTUR ATAP</span>
-          <span class="text-[11px] font-mono text-slate-400">3D Mesh Generator</span>
+          <span class="text-xs font-mono uppercase tracking-wider text-brand font-semibold" data-i18n="sec01">01 · ARSITEKTUR ATAP</span>
+          <span class="text-[11px] font-mono text-slate-500">3D Mesh Generator</span>
         </div>
 
         <div class="space-y-3">
           <div>
-            <label class="block text-xs text-slate-300 mb-1" data-i18n="roofTypeLabel">Tipologi Struktur Atap 3D</label>
-            <select id="roof-type" class="w-full bg-bgpanel border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-solar">
+            <label class="block text-xs text-slate-600 mb-1" data-i18n="roofTypeLabel">Tipologi Struktur Atap 3D</label>
+            <select id="roof-type" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-solar">
               <option value="gable-dual" data-i18n="roofOptGableDual">Pelana 2 Sisi (Gable Dual-Slope)</option>
               <option value="gable-single" data-i18n="roofOptGableSingle">Pelana 1 Sisi Aktif (Gable Single-Side)</option>
               <option value="flat-tilt" data-i18n="roofOptFlat">Dak Beton + Racking Miring (Flat C&I)</option>
@@ -93,15 +92,15 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <div class="flex justify-between text-xs mb-1">
-                <span class="text-slate-400" data-i18n="roofLength">Panjang Atap (X)</span>
-                <span id="val-roof-length" class="font-mono text-solar">24 m</span>
+                <span class="text-slate-500" data-i18n="roofLength">Panjang Atap (X)</span>
+                <span id="val-roof-length" class="font-mono text-brand">24 m</span>
               </div>
               <input id="roof-length" type="range" min="10" max="50" step="1" value="24" class="w-full accent-[#F5E214]" />
             </div>
             <div>
               <div class="flex justify-between text-xs mb-1">
-                <span class="text-slate-400" data-i18n="roofWidth">Lebar Atap (Y)</span>
-                <span id="val-roof-width" class="font-mono text-solar">14 m</span>
+                <span class="text-slate-500" data-i18n="roofWidth">Lebar Atap (Y)</span>
+                <span id="val-roof-width" class="font-mono text-brand">14 m</span>
               </div>
               <input id="roof-width" type="range" min="8" max="32" step="1" value="14" class="w-full accent-[#F5E214]" />
             </div>
@@ -110,24 +109,24 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <div class="flex justify-between text-xs mb-1">
-                <span class="text-slate-400" data-i18n="roofTilt">Kemiringan Atap (Tilt)</span>
-                <span id="val-roof-tilt" class="font-mono text-solar">18°</span>
+                <span class="text-slate-500" data-i18n="roofTilt">Kemiringan Atap (Tilt)</span>
+                <span id="val-roof-tilt" class="font-mono text-brand">18°</span>
               </div>
               <input id="roof-tilt" type="range" min="0" max="40" step="1" value="18" class="w-full accent-[#F5E214]" />
             </div>
             <div>
               <div class="flex justify-between text-xs mb-1">
-                <span class="text-slate-400" data-i18n="wallHeight">Tinggi Gedung</span>
-                <span id="val-wall-height" class="font-mono text-slate-200">6.0 m</span>
+                <span class="text-slate-500" data-i18n="wallHeight">Tinggi Gedung</span>
+                <span id="val-wall-height" class="font-mono text-slate-700">6.0 m</span>
               </div>
-              <input id="wall-height" type="range" min="3" max="16" step="0.5" value="6" class="w-full accent-[#4A90D9]" />
+              <input id="wall-height" type="range" min="3" max="16" step="0.5" value="6" class="w-full accent-[#12579B]" />
             </div>
           </div>
 
           <div>
             <div class="flex justify-between text-xs mb-1">
-              <span class="text-slate-400" data-i18n="setback">Perimeter Setback (Jarak Tepi Aman)</span>
-              <span id="val-setback" class="font-mono text-slate-200">0.8 m</span>
+              <span class="text-slate-500" data-i18n="setback">Perimeter Setback (Jarak Tepi Aman)</span>
+              <span id="val-setback" class="font-mono text-slate-700">0.8 m</span>
             </div>
             <input id="roof-setback" type="range" min="0.3" max="2.5" step="0.1" value="0.8" class="w-full accent-[#F5E214]" />
           </div>
@@ -135,24 +134,24 @@
       </section>
 
       <!-- SECTION 02: SOLAR PV ARRAY SPEC -->
-      <section class="bg-bgcard border border-slate-800/90 rounded-xl p-4 shadow-lg">
+      <section class="bg-bgcard border border-slate-200 rounded-xl p-4 shadow-lg">
         <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-mono uppercase tracking-wider text-solar font-semibold" data-i18n="sec02">02 · SPESIFIKASI ARRAY PV SURYA</span>
-          <span class="text-[11px] font-mono text-slate-400">IEC 61215 / 61730</span>
+          <span class="text-xs font-mono uppercase tracking-wider text-brand font-semibold" data-i18n="sec02">02 · SPESIFIKASI ARRAY PV SURYA</span>
+          <span class="text-[11px] font-mono text-slate-500">IEC 61215 / 61730</span>
         </div>
 
         <div class="space-y-3">
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs text-slate-300 mb-1" data-i18n="panelOrientation">Orientasi Modul</label>
-              <select id="panel-orientation" class="w-full bg-bgpanel border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-white">
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="panelOrientation">Orientasi Modul</label>
+              <select id="panel-orientation" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
                 <option value="portrait">Portrait (1.13m × 2.27m)</option>
                 <option value="landscape">Landscape (2.27m × 1.13m)</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs text-slate-300 mb-1" data-i18n="panelWp">Kapasitas Modul (Wp)</label>
-              <select id="panel-wp" class="w-full bg-bgpanel border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-white">
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="panelWp">Kapasitas Modul (Wp)</label>
+              <select id="panel-wp" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
                 <option value="550">550 Wp (Mono PERC)</option>
                 <option value="610" selected>610 Wp (N-Type TOPCon)</option>
                 <option value="670">670 Wp (Utility Bifacial)</option>
@@ -163,47 +162,47 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <div class="flex justify-between text-xs mb-1">
-                <span class="text-slate-400" data-i18n="rowGap">Jarak Antar-Baris</span>
-                <span id="val-row-gap" class="font-mono text-slate-200">0.35 m</span>
+                <span class="text-slate-500" data-i18n="rowGap">Jarak Antar-Baris</span>
+                <span id="val-row-gap" class="font-mono text-slate-700">0.35 m</span>
               </div>
               <input id="row-gap" type="range" min="0.05" max="1.8" step="0.05" value="0.35" class="w-full accent-[#F5E214]" />
             </div>
             <div>
               <div class="flex justify-between text-xs mb-1">
-                <span class="text-slate-400" data-i18n="rackTilt">Sudut Racking (Flat)</span>
-                <span id="val-rack-tilt" class="font-mono text-slate-200">12°</span>
+                <span class="text-slate-500" data-i18n="rackTilt">Sudut Racking (Flat)</span>
+                <span id="val-rack-tilt" class="font-mono text-slate-700">12°</span>
               </div>
               <input id="rack-tilt" type="range" min="5" max="25" step="1" value="12" class="w-full accent-[#F5E214]" />
             </div>
           </div>
 
-          <div class="pt-1 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/80">
-            <span><span data-i18n="obstacleLabel">Obstacle / Modul Nonaktif:</span> <strong id="obstacle-count" class="text-solar font-mono">0</strong></span>
+          <div class="pt-1 flex items-center justify-between text-xs text-slate-500 border-t border-slate-200">
+            <span><span data-i18n="obstacleLabel">Obstacle / Modul Nonaktif:</span> <strong id="obstacle-count" class="text-brand font-mono">0</strong></span>
             <button id="clear-obstacles" class="text-xs font-mono text-bess hover:underline" data-i18n="resetObstacles">Reset Obstacle</button>
           </div>
         </div>
       </section>
 
       <!-- SECTION 03: BESS STORAGE & SUN PATH -->
-      <section class="bg-bgcard border border-slate-800/90 rounded-xl p-4 shadow-lg">
+      <section class="bg-bgcard border border-slate-200 rounded-xl p-4 shadow-lg">
         <div class="flex items-center justify-between mb-3">
           <span class="text-xs font-mono uppercase tracking-wider text-bess font-semibold" data-i18n="sec03">03 · GEOMETRI BESS & SURYA</span>
-          <span class="text-[11px] font-mono text-slate-400">Pyomo MILP Sizing</span>
+          <span class="text-[11px] font-mono text-slate-500">Pyomo MILP Sizing</span>
         </div>
 
         <div class="space-y-3">
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs text-slate-300 mb-1" data-i18n="bessChemistry">Kimia BESS</label>
-              <select id="bess-chemistry" class="w-full bg-bgpanel border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-white">
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="bessChemistry">Kimia BESS</label>
+              <select id="bess-chemistry" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
                 <option value="LFP" selected>LFP (LiFePO₄ · 92% RTE)</option>
                 <option value="NAION">Sodium-Ion (Na-ion · 89% RTE)</option>
                 <option value="VRFB">Vanadium Flow (VRFB · 78% RTE)</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs text-slate-300 mb-1" data-i18n="siteLocation">Zona Iklim / Lokasi</label>
-              <select id="site-location" class="w-full bg-bgpanel border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-white">
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="siteLocation">Zona Iklim / Lokasi</label>
+              <select id="site-location" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
                 <option value="jakarta" selected>Jakarta, ID (PSH 4.6h)</option>
                 <option value="riau" data-i18n="siteRiau">Kepulauan Riau (PSH 4.9h)</option>
                 <option value="oskarshamn">Oskarshamn, SE (PSH 3.3h)</option>
@@ -213,16 +212,16 @@
 
           <div>
             <div class="flex justify-between text-xs mb-1">
-              <span class="text-slate-400" data-i18n="bessKwh">Kapasitas BESS (Usable Energy)</span>
+              <span class="text-slate-500" data-i18n="bessKwh">Kapasitas BESS (Usable Energy)</span>
               <span id="val-bess-kwh" class="font-mono text-bess">120 kWh</span>
             </div>
-            <input id="bess-kwh" type="range" min="0" max="500" step="10" value="120" class="w-full accent-[#4A90D9]" />
+            <input id="bess-kwh" type="range" min="0" max="500" step="10" value="120" class="w-full accent-[#12579B]" />
           </div>
 
           <div>
             <div class="flex justify-between text-xs mb-1">
-              <span class="text-slate-400" data-i18n="sunHour">Jam Surya (3D Sun Raycasting)</span>
-              <span id="val-sun-hour" class="font-mono text-solar">10:30</span>
+              <span class="text-slate-500" data-i18n="sunHour">Jam Surya (3D Sun Raycasting)</span>
+              <span id="val-sun-hour" class="font-mono text-brand">10:30</span>
             </div>
             <input id="sun-hour" type="range" min="6.5" max="17.5" step="0.25" value="10.5" class="w-full accent-[#F5E214]" />
           </div>
@@ -236,67 +235,67 @@
 
       <!-- KPI METRICS ROW -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="bg-bgcard border border-slate-800 rounded-xl p-3.5">
-          <div class="text-[11px] font-mono text-slate-400 uppercase" data-i18n="kpiKwp">Kapasitas PV Terpasang</div>
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3.5">
+          <div class="text-[11px] font-mono text-slate-500 uppercase" data-i18n="kpiKwp">Kapasitas PV Terpasang</div>
           <div class="mt-1 flex items-baseline gap-1.5">
-            <span id="kpi-kwp" class="text-2xl font-display font-bold text-solar">0.0</span>
-            <span class="text-xs font-mono text-slate-400">kWp</span>
+            <span id="kpi-kwp" class="text-2xl font-display font-bold text-brand">0.0</span>
+            <span class="text-xs font-mono text-slate-500">kWp</span>
           </div>
-          <div id="kpi-panels" class="text-[11px] font-mono text-slate-400 mt-1">0 modul aktif</div>
+          <div id="kpi-panels" class="text-[11px] font-mono text-slate-500 mt-1">0 modul aktif</div>
         </div>
 
-        <div class="bg-bgcard border border-slate-800 rounded-xl p-3.5">
-          <div class="text-[11px] font-mono text-slate-400 uppercase" data-i18n="kpiYield">Hasil Energi Tahunan</div>
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3.5">
+          <div class="text-[11px] font-mono text-slate-500 uppercase" data-i18n="kpiYield">Hasil Energi Tahunan</div>
           <div class="mt-1 flex items-baseline gap-1.5">
-            <span id="kpi-yield" class="text-2xl font-display font-bold text-white">0</span>
-            <span class="text-xs font-mono text-slate-400" data-i18n="kpiYieldUnit">MWh/thn</span>
+            <span id="kpi-yield" class="text-2xl font-display font-bold text-slate-900">0</span>
+            <span class="text-xs font-mono text-slate-500" data-i18n="kpiYieldUnit">MWh/thn</span>
           </div>
-          <div id="kpi-specific" class="text-[11px] font-mono text-slate-400 mt-1">Rasio area &amp; cos(θ) aktif</div>
+          <div id="kpi-specific" class="text-[11px] font-mono text-slate-500 mt-1">Rasio area &amp; cos(θ) aktif</div>
         </div>
 
-        <div class="bg-bgcard border border-slate-800 rounded-xl p-3.5">
-          <div class="text-[11px] font-mono text-slate-400 uppercase" data-i18n="kpiBess">Spesifikasi Penyimpanan BESS</div>
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3.5">
+          <div class="text-[11px] font-mono text-slate-500 uppercase" data-i18n="kpiBess">Spesifikasi Penyimpanan BESS</div>
           <div class="mt-1 flex items-baseline gap-1.5">
             <span id="kpi-bess" class="text-2xl font-display font-bold text-bess">120</span>
-            <span class="text-xs font-mono text-slate-400">kWh</span>
+            <span class="text-xs font-mono text-slate-500">kWh</span>
           </div>
-          <div id="kpi-autonomy" class="text-[11px] font-mono text-slate-400 mt-1">LFP · 92% Round-Trip</div>
+          <div id="kpi-autonomy" class="text-[11px] font-mono text-slate-500 mt-1">LFP · 92% Round-Trip</div>
         </div>
 
-        <div class="bg-bgcard border border-slate-800 rounded-xl p-3.5">
-          <div class="text-[11px] font-mono text-slate-400 uppercase" data-i18n="kpiSavings">Penghematan Tahunan &amp; CO₂</div>
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3.5">
+          <div class="text-[11px] font-mono text-slate-500 uppercase" data-i18n="kpiSavings">Penghematan Tahunan &amp; CO₂</div>
           <div class="mt-1 flex items-baseline gap-1.5">
-            <span id="kpi-savings" class="text-xl font-display font-bold text-solar">Rp 0</span>
+            <span id="kpi-savings" class="text-xl font-display font-bold text-brand">Rp 0</span>
           </div>
-          <div id="kpi-co2" class="text-[11px] font-mono text-slate-400 mt-1">0,0 tCO₂/thn dihindari</div>
+          <div id="kpi-co2" class="text-[11px] font-mono text-slate-500 mt-1">0,0 tCO₂/thn dihindari</div>
         </div>
       </div>
 
       <!-- 3D WEBGL VIEWPORT -->
-      <div class="relative bg-bgcard border border-slate-800 rounded-xl overflow-hidden h-[420px] sm:h-[460px] shadow-xl">
+      <div class="relative bg-bgcard border border-slate-200 rounded-xl overflow-hidden h-[420px] sm:h-[460px] shadow-xl">
         <!-- Top Overlay HUD -->
         <div class="absolute top-3 left-3 z-10 flex flex-wrap items-center gap-2 pointer-events-none">
-          <span class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-700 text-[11px] font-mono text-solar">
+          <span class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-300 text-[11px] font-mono text-brand">
             3D INTERACTIVE ROOFTOP · THREE.JS WEBGL
           </span>
-          <span id="hud-slope-info" class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-800 text-[11px] font-mono text-slate-300">
+          <span id="hud-slope-info" class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-200 text-[11px] font-mono text-slate-600">
             Lebar Kemiringan Kasau: 7.36 m
           </span>
         </div>
 
         <!-- Camera Preset Controls -->
         <div class="absolute top-3 right-3 z-10 flex items-center gap-1.5">
-          <button data-cam="iso" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-700 text-[11px] font-mono text-slate-200 transition">Iso 3D</button>
-          <button data-cam="top" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-700 text-[11px] font-mono text-slate-200 transition" data-i18n="camTop">Denah Atas</button>
-          <button data-cam="side" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-700 text-[11px] font-mono text-slate-200 transition" data-i18n="camSide">Elevasi</button>
+          <button data-cam="iso" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-300 text-[11px] font-mono text-slate-700 transition">Iso 3D</button>
+          <button data-cam="top" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-300 text-[11px] font-mono text-slate-700 transition" data-i18n="camTop">Denah Atas</button>
+          <button data-cam="side" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-300 text-[11px] font-mono text-slate-700 transition" data-i18n="camSide">Elevasi</button>
         </div>
 
         <!-- Bottom Hint Overlay -->
-        <div class="absolute bottom-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none text-[11px] font-mono text-slate-400">
-          <span class="bg-bgdeep/85 px-2.5 py-1 rounded border border-slate-800">
-            <span data-i18n="hintText">Drag: Putar 3D · Scroll: Zoom · </span><strong class="text-solar" data-i18n="hintStrong">Klik Modul PV: Toggle Obstacle (Cerobong/Skylight)</strong>
+        <div class="absolute bottom-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none text-[11px] font-mono text-slate-500">
+          <span class="bg-bgdeep/85 px-2.5 py-1 rounded border border-slate-200">
+            <span data-i18n="hintText">Drag: Putar 3D · Scroll: Zoom · </span><strong class="text-brand" data-i18n="hintStrong">Klik Modul PV: Toggle Obstacle (Cerobong/Skylight)</strong>
           </span>
-          <span id="hud-sun-elevation" class="bg-bgdeep/85 px-2.5 py-1 rounded border border-slate-800 text-bess">
+          <span id="hud-sun-elevation" class="bg-bgdeep/85 px-2.5 py-1 rounded border border-slate-200 text-bess">
             Elevasi Matahari: 62°
           </span>
         </div>
@@ -306,16 +305,16 @@
       </div>
 
       <!-- SECTION 04: 24-HOUR ROLLING-HORIZON DISPATCH SIMULATION -->
-      <section class="bg-bgcard border border-slate-800 rounded-xl p-4">
+      <section class="bg-bgcard border border-slate-200 rounded-xl p-4">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div>
             <span class="text-xs font-mono uppercase tracking-wider text-bess font-semibold" data-i18n="sec04">04 · SIMULASI DISPATCH ROLLING-HORIZON (24 JAM)</span>
-            <p class="text-xs text-slate-400" data-i18n="sec04Desc">Profil pembangkitan PV, pengisian/pengosongan BESS, dan pemangkasan beban puncak (Peak Shaving)</p>
+            <p class="text-xs text-slate-500" data-i18n="sec04Desc">Profil pembangkitan PV, pengisian/pengosongan BESS, dan pemangkasan beban puncak (Peak Shaving)</p>
           </div>
           <div class="flex items-center gap-4 text-xs font-mono">
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-solar inline-block"></span>Solar PV (kW)</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#D97706] inline-block"></span>Solar PV (kW)</span>
             <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-bess inline-block"></span>BESS SoC (%)</span>
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span><span data-i18n="legendLoad">Beban Site (kW)</span></span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block"></span><span data-i18n="legendLoad">Beban Site (kW)</span></span>
           </div>
         </div>
         <div class="w-full h-36">

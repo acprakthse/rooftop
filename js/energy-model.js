@@ -105,7 +105,7 @@ const EnergyModel = {
     const maxKw = Math.max(10, peakPv * 1.15, ...loadProfile);
 
     // Grid lines
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+    ctx.strokeStyle = 'rgba(100, 116, 139, 0.25)';
     ctx.lineWidth = 1;
     for (let i = 0; i <= 3; i++) {
       const y = padT + (plotH * i) / 3;
@@ -119,7 +119,7 @@ const EnergyModel = {
     const toYKw = (val) => padT + plotH - (val / maxKw) * plotH;
     const toYSoc = (val) => padT + plotH - (val / 100) * plotH;
 
-    // 1. Draw PV Area (Brand Yellow)
+    // 1. Draw PV Area (Yellow fill, amber line for contrast on white)
     ctx.beginPath();
     ctx.moveTo(toX(0), padT + plotH);
     pvProfile.forEach((v, i) => ctx.lineTo(toX(i), toYKw(v)));
@@ -133,14 +133,14 @@ const EnergyModel = {
 
     ctx.beginPath();
     pvProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYKw(v)) : ctx.lineTo(toX(i), toYKw(v))));
-    ctx.strokeStyle = '#F5E214';
+    ctx.strokeStyle = '#D97706';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // 2. Draw Load Line (Light Grey)
+    // 2. Draw Load Line (Slate Grey)
     ctx.beginPath();
     loadProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYKw(v)) : ctx.lineTo(toX(i), toYKw(v))));
-    ctx.strokeStyle = '#cbd5e1';
+    ctx.strokeStyle = '#64748b';
     ctx.lineWidth = 1.8;
     ctx.setLineDash([4, 3]);
     ctx.stroke();
@@ -149,12 +149,12 @@ const EnergyModel = {
     // 3. Draw BESS SoC Line (Brand Blue)
     ctx.beginPath();
     socProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYSoc(v)) : ctx.lineTo(toX(i), toYSoc(v))));
-    ctx.strokeStyle = '#4A90D9';
+    ctx.strokeStyle = '#12579B';
     ctx.lineWidth = 2;
     ctx.stroke();
 
     // X-axis hour labels
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = '#64748b';
     ctx.font = '10px "JetBrains Mono", monospace';
     [0, 6, 12, 18, 23].forEach(hr => {
       const x = toX(hr);

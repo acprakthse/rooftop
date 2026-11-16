@@ -24,8 +24,8 @@ const Scene3D = {
     this.onToggleObstacle = onToggleCallback;
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x070a12);
-    this.scene.fog = new THREE.FogExp2(0x070a12, 0.0085);
+    this.scene.background = new THREE.Color(0xF2F4F5);
+    this.scene.fog = new THREE.FogExp2(0xF2F4F5, 0.0085);
 
     this.camera = new THREE.PerspectiveCamera(42, container.clientWidth / container.clientHeight, 0.1, 400);
     this.camera.position.set(28, 22, 30);
@@ -44,7 +44,7 @@ const Scene3D = {
     this.controls.target.set(0, 4, 0);
 
     // Ambient & Directional Sun Light
-    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x0f172a, 0.65);
+    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0xe2e8f0, 0.65);
     this.scene.add(hemiLight);
 
     this.sunLight = new THREE.DirectionalLight(0xfffbeb, 1.25);
@@ -66,13 +66,13 @@ const Scene3D = {
 
     // Ground Grid
     const groundGeo = new THREE.PlaneGeometry(160, 160);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x090d18, roughness: 0.95 });
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0xe8ecf0, roughness: 0.95 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    const grid = new THREE.GridHelper(100, 50, 0x1e293b, 0x111827);
+    const grid = new THREE.GridHelper(100, 50, 0xcbd5e1, 0xe2e8f0);
     grid.position.y = 0.02;
     this.scene.add(grid);
 
@@ -173,7 +173,7 @@ const Scene3D = {
     const tiltRad = (state.roofTilt * Math.PI) / 180;
 
     // 1. Building Base Walls
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x162032, roughness: 0.85 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xd7dde6, roughness: 0.85 });
     const wallGeo = new THREE.BoxGeometry(L, H, W);
     const wallMesh = new THREE.Mesh(wallGeo, wallMat);
     wallMesh.position.y = H / 2;
@@ -193,7 +193,7 @@ const Scene3D = {
     }
 
     // 3. Roof Structure & Solar Panel Planes
-    const roofMat = new THREE.MeshStandardMaterial({ color: 0x26334d, roughness: 0.7, side: THREE.DoubleSide });
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x9aa7b8, roughness: 0.7, side: THREE.DoubleSide });
     const halfW = W / 2;
     let activePanelsCount = 0;
     let rafterLength = halfW;
