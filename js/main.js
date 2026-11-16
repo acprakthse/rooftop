@@ -41,7 +41,144 @@ function formatCurrency(metrics) {
   }
 }
 
+// ---- Roof-shape shading state ----
+// The shading result belongs to one exact roof geometry. Any geometry
+// change (roof size, tilt, orientation, obstacles, location) invalidates
+// it, so the KPIs never silently use a stale shading factor.
+let shadingResult = null;
+let shadingFingerprint = '';
+let shadingRunning = false;
+let lastMetrics = null;
+
+const MONTH_NAMES = {
+  id: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+};
+
+function geometryFingerprint() {
+  return JSON.stringify([
+    AppState.roofType, AppState.orientation, AppState.roofLength,
+    AppState.roofWidth, AppState.roofTilt, AppState.wallHeight,
+    AppState.roofSetback, AppState.panelOrientation, AppState.rowGap,
+    AppState.rackTilt, AppState.bessKwh, AppState.siteLocation,
+    [...Scene3D.disabledSlots].sort()
+  ]);
+}
+
+function slopeLabel(side) {
+  if (side === 'S') return I18n.t('dirS');
+  if (side === 'N') return I18n.t('dirN');
+  if (side === 'FLAT') return I18n.t('slopeFlat');
+  return side; // SHED and anything else keep their code
+}
+
+function renderShadingUI() {
+  const statusEl = document.getElementById('shading-status');
+  const resultsEl = document.getElementById('shading-results');
+  const runBtn = document.getElementById('run-shading');
+  if (!statusEl || !resultsEl || !runBtn) return;
+
+  runBtn.disabled = shadingRunning;
+  if (!shadingRunning) runBtn.textContent = I18n.t('shadingRun');
+
+  if (shadingRunning) {
+    resultsEl.classList.add('hidden');
+    return; // status line is driven by the progress callback
+  }
+  if (!shadingResult) {
+    statusEl.textContent = I18n.t('shadingNotRun');
+    resultsEl.classList.add('hidden');
+    return;
+  }
+
+  statusEl.textContent = '';
+  resultsEl.classList.remove('hidden');
+  document.getElementById('shading-annual').textContent = shadingResult.annualLossPercent.toFixed(1);
+  document.getElementById('shading-modules').textContent = I18n.t('shadingModules', {
+    n: shadingResult.moduleCount, m: shadingResult.samplePoints
+  });
+  if (lastMetrics) {
+    const shaded = lastMetrics.annualMwh;
+    const unshaded = shadingResult.annualLossPercent > 0
+      ? shaded / (1 - shadingResult.annualLossPercent / 100)
+      : shaded;
+    document.getElementById('shading-corrected').textContent = I18n.t('shadingCorrected', {
+      v: shaded.toFixed(1), u: unshaded.toFixed(1)
+    });
+  }
+
+  const slopesEl = document.getElementById('shading-slopes');
+  slopesEl.innerHTML = '';
+  for (const side of Object.keys(shadingResult.perSlope).sort()) {
+    const s = shadingResult.perSlope[side];
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2 text-xs font-sans';
+    const barW = Math.min(100, s.lossPercent * 5); // 20% loss fills the bar
+    row.innerHTML =
+      '<span class="w-16 shrink-0 text-slate-600"></span>' +
+      '<span class="flex-1 h-2.5 rounded bg-slate-100 overflow-hidden"><span class="block h-full bg-[#D97706] rounded" style="width:' + barW.toFixed(1) + '%"></span></span>' +
+      '<span class="w-14 shrink-0 text-right text-slate-700 tabular-nums"></span>';
+    row.children[0].textContent = slopeLabel(side) + ' · ' + s.modules;
+    row.children[2].textContent = s.lossPercent.toFixed(1) + '%';
+    slopesEl.appendChild(row);
+  }
+
+  const monthsEl = document.getElementById('shading-months');
+  const labelsEl = document.getElementById('shading-month-labels');
+  monthsEl.innerHTML = '';
+  labelsEl.innerHTML = '';
+  const names = MONTH_NAMES[I18n.lang] || MONTH_NAMES.en;
+  shadingResult.monthlyLossPercent.forEach((loss, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'flex-1 rounded-t bg-[#12579B] min-h-[2px]';
+    bar.style.height = Math.min(100, loss * 10) + '%'; // 10% loss fills the height
+    bar.title = names[i] + ': ' + loss.toFixed(1) + '%';
+    monthsEl.appendChild(bar);
+    const lab = document.createElement('div');
+    lab.className = 'flex-1 text-center text-[10px] font-sans text-slate-400';
+    lab.textContent = names[i];
+    labelsEl.appendChild(lab);
+  });
+}
+
+async function runShadingAnalysis() {
+  if (shadingRunning) return;
+  const statusEl = document.getElementById('shading-status');
+  const runBtn = document.getElementById('run-shading');
+  shadingRunning = true;
+  renderShadingUI();
+  updateAll(); // make sure the scene matches the current inputs
+  const fingerprintAtStart = geometryFingerprint();
+
+  try {
+    const result = await ShadingAnalyzer.analyze(AppState, Scene3D, (frac) => {
+      if (statusEl) statusEl.textContent = I18n.t('shadingRunning', { v: Math.round(frac * 100) });
+      if (runBtn) runBtn.textContent = I18n.t('shadingRunning', { v: Math.round(frac * 100) });
+    });
+    if (!result) {
+      if (statusEl) statusEl.textContent = I18n.t('shadingNoModules');
+      return;
+    }
+    // Accept only if the geometry did not change mid-run.
+    if (geometryFingerprint() !== fingerprintAtStart) {
+      if (statusEl) statusEl.textContent = I18n.t('shadingStale');
+      return;
+    }
+    shadingResult = result;
+    shadingFingerprint = fingerprintAtStart;
+  } finally {
+    shadingRunning = false;
+    updateAll(); // refresh KPIs with the new shading factor + render results
+  }
+}
+
 function updateAll() {
+  // Invalidate a shading result that belongs to different geometry.
+  if (shadingResult && geometryFingerprint() !== shadingFingerprint) {
+    shadingResult = null;
+    shadingFingerprint = '';
+  }
+
   // Update labels
   document.getElementById('val-orientation').textContent = formatCompass(AppState.orientation);
   document.getElementById('val-wind').textContent = formatCompass(AppState.windDirection);
@@ -80,13 +217,17 @@ function updateAll() {
   document.getElementById('hud-sun-elevation').textContent = I18n.t('sunElevation', { v: elevDeg });
   document.getElementById('obstacle-count').textContent = Scene3D.disabledSlots.size;
 
-  // Calculate Energy & Financial KPIs
-  const metrics = EnergyModel.calculateMetrics(AppState, activePanelsCount);
+  // Calculate Energy & Financial KPIs (with roof-shape shading when measured)
+  const shadingLoss = shadingResult ? shadingResult.annualLossPercent : 0;
+  const metrics = EnergyModel.calculateMetrics(AppState, activePanelsCount, shadingLoss);
+  lastMetrics = metrics;
 
   document.getElementById('kpi-kwp').textContent = metrics.kwp.toFixed(1);
   document.getElementById('kpi-panels').textContent = I18n.t('activeModules', { n: activePanelsCount, wp: AppState.panelWp });
   document.getElementById('kpi-yield').textContent = metrics.annualMwh.toFixed(1);
-  document.getElementById('kpi-specific').textContent = I18n.t('specificYield', { pr: (metrics.pr * 100).toFixed(0), kwh: metrics.dailyKwh.toFixed(0) });
+  document.getElementById('kpi-specific').textContent = shadingResult
+    ? I18n.t('specificYieldShaded', { pr: (metrics.pr * 100).toFixed(0), kwh: metrics.dailyKwh.toFixed(0), sh: shadingLoss.toFixed(1) })
+    : I18n.t('specificYield', { pr: (metrics.pr * 100).toFixed(0), kwh: metrics.dailyKwh.toFixed(0) });
   document.getElementById('kpi-bess').textContent = AppState.bessKwh;
   document.getElementById('kpi-autonomy').textContent = `${metrics.chem.label} · ${(metrics.chem.rte * 100).toFixed(0)}% RTE`;
   document.getElementById('kpi-savings').textContent = formatCurrency(metrics);
@@ -94,6 +235,9 @@ function updateAll() {
 
   // Draw 24h Dispatch Chart
   EnergyModel.drawDispatchChart(document.getElementById('dispatch-chart'), AppState, metrics);
+
+  // Shading section (status + results, re-translated on language change)
+  renderShadingUI();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -171,6 +315,11 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => {
       Scene3D.setCameraPreset(btn.dataset.cam);
     });
+  });
+
+  // Roof-shape shading analysis (3D raycast)
+  document.getElementById('run-shading').addEventListener('click', () => {
+    runShadingAnalysis();
   });
 
   window.addEventListener('resize', () => updateAll());

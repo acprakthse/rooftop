@@ -2,6 +2,9 @@
  * energy-model.js
  * Techno-economic PV Yield, Solar Geometry, and 24-Hour BESS Dispatch Engine
  * Inspired by Ardian Candra's MSc Thesis (KTH Royal Institute of Technology)
+ * NOTE: illustrative model only, not PySAM/PVlib, no MILP optimizer.
+ * Yield uses fixed PSH per site; orientation uses a simple latitude-scaled
+ * derate (see orientationFactor below), not a full solar-geometry model.
  */
 
 const EnergyModel = {
@@ -17,7 +20,7 @@ const EnergyModel = {
     VRFB: { label: "VRFB Flow", rte: 0.78, dod: 0.98 }
   },
 
-  calculateMetrics(state, activePanelsCount) {
+  calculateMetrics(state, activePanelsCount, shadingLossPercent = 0) {
     const loc = this.locations[state.siteLocation] || this.locations.jakarta;
     const chem = this.chemistries[state.bessChemistry] || this.chemistries.LFP;
 
@@ -30,11 +33,25 @@ const EnergyModel = {
     const tiltDeviation = Math.abs(effectiveTilt - optimalTilt);
     const tiltFactor = Math.max(0.82, 1 - tiltDeviation * 0.0035);
 
+    // 2b. Orientation Factor (illustrative, latitude-scaled).
+    // Optimal azimuth faces the equator: 0 deg (North) south of the equator,
+    // 180 deg (South) north of it. Loss grows with latitude: near the equator
+    // (Jakarta, lat -6.2) azimuth barely matters; at high latitude
+    // (Oskarshamn, lat 57.3) facing away costs up to 30%.
+    const optimalAzimuth = loc.lat < 0 ? 0 : 180;
+    let azDeviation = Math.abs(state.orientation - optimalAzimuth) % 360;
+    if (azDeviation > 180) azDeviation = 360 - azDeviation;
+    const latWeight = Math.min(1, Math.abs(loc.lat) / 30);
+    const orientationFactor = 1 - 0.30 * latWeight * (1 - Math.cos(azDeviation * Math.PI / 180)) / 2;
+
     // 3. Performance Ratio (PR) including temperature & inverter losses
-    const pr = 0.82 * tiltFactor;
+    const pr = 0.82 * tiltFactor * orientationFactor;
+
+    // 3b. Roof-shape shading (from ShadingAnalyzer raycasts, 0 = not measured yet)
+    const shadingFactor = 1 - Math.min(100, Math.max(0, shadingLossPercent)) / 100;
 
     // 4. Daily & Annual Yield
-    const dailyKwh = kwp * loc.psh * pr;
+    const dailyKwh = kwp * loc.psh * pr * shadingFactor;
     const annualMwh = (dailyKwh * 365) / 1000;
 
     // 5. Financial Savings & CO2
@@ -48,6 +65,9 @@ const EnergyModel = {
       dailyKwh,
       annualMwh,
       pr,
+      orientationFactor,
+      tiltFactor,
+      shadingLossPercent,
       savingsIdr,
       savingsEur,
       co2Tonnes,
@@ -74,7 +94,7 @@ const EnergyModel = {
 
     // Generate 24h profiles
     const hours = Array.from({ length: 24 }, (_, i) => i);
-    const peakPv = metrics.kwp * 0.82;
+    const peakPv = metrics.kwp * metrics.pr * (1 - (metrics.shadingLossPercent || 0) / 100);
     const baseLoad = Math.max(15, metrics.kwp * 0.32);
 
     const pvProfile = hours.map(hr => {
@@ -89,13 +109,22 @@ const EnergyModel = {
       return baseLoad * (0.6 + morningPeak + eveningPeak);
     });
 
-    // Simulate BESS SoC (%)
+    // Simulate BESS SoC (%). Usable capacity and SoC limits come from the
+    // selected chemistry's DoD; round-trip efficiency applies on both legs:
+    // charging stores net * RTE, discharging must draw net / RTE from the
+    // battery to deliver net to the load. (Replaces the old unexplained 0.65.)
     let soc = 35;
     const bessCap = Math.max(1, state.bessKwh);
+    const usableCap = bessCap * metrics.chem.dod;
+    const socMin = (1 - metrics.chem.dod) * 100;
+    const socMax = 100;
     const socProfile = hours.map((hr, i) => {
       const net = pvProfile[i] - loadProfile[i];
       if (state.bessKwh > 0) {
-        soc = Math.min(95, Math.max(15, soc + (net / bessCap) * 100 * 0.65));
+        const delta = net >= 0
+          ? (net / usableCap) * 100 * metrics.chem.rte
+          : (net / usableCap) * 100 / metrics.chem.rte;
+        soc = Math.min(socMax, Math.max(socMin, soc + delta));
       } else {
         soc = 0;
       }
