@@ -2,6 +2,8 @@
 
 Aplikasi web interaktif untuk pemodelan geometri **3D Rooftop Solar PV**, simulasi lintasan matahari (*sun-path & shadow casting*), serta *co-sizing* **Battery Energy Storage System (BESS)** dengan estetika *dark engineering* dari **ardiancandra.com**.
 
+Live site: https://rooftop.ardiancandra.com
+
 ## Struktur Folder
 ```text
 rooftop-pv-3d/
