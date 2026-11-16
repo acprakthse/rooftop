@@ -1,0 +1,39 @@
+/* Custom Styling matching ardiancandra.com dark engineering aesthetic */
+:root {
+  --bg-deep: #070a12;
+  --bg-card: #0d1322;
+  --bg-panel: #121a2d;
+  --accent-solar: #f59e0b;
+  --accent-bess: #38bdf8;
+  --accent-emerald: #10b981;
+}
+
+body {
+  background-color: var(--bg-deep);
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.06), transparent 35%),
+    radial-gradient(circle at 85% 80%, rgba(56, 189, 248, 0.06), transparent 35%);
+}
+
+/* Custom Scrollbar for Sidebar */
+.custom-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scroll::-webkit-scrollbar-track {
+  background: #070a12;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Range Input Polish */
+input[type="range"] {
+  height: 5px;
+  border-radius: 4px;
+  background: #1e293b;
+  cursor: pointer;
+}
