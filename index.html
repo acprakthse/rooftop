@@ -428,6 +428,49 @@
               <div id="pysam-weather" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
             </div>
           </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamSpecificYield">Yield spesifik</div>
+              <div class="mt-0.5 flex items-baseline gap-1.5">
+                <span id="pysam-yield" class="text-2xl font-sans font-bold text-slate-900 tabular-nums">0</span>
+                <span class="text-xs font-sans text-slate-500">kWh/kWp</span>
+              </div>
+              <div id="pysam-yield-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamSelfConsumed">Energi PV terpakai</div>
+              <div class="mt-0.5 flex items-baseline gap-1.5">
+                <span id="pysam-used" class="text-2xl font-sans font-bold text-brand tabular-nums">0</span>
+                <span class="text-xs font-sans text-slate-500" data-i18n="kpiYieldUnit">MWh/thn</span>
+              </div>
+              <div id="pysam-used-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamCurtailed">Curtailment (terbuang)</div>
+              <div class="mt-0.5 flex items-baseline gap-1.5">
+                <span id="pysam-curt" class="text-2xl font-sans font-bold text-[#BB1326] tabular-nums">0</span>
+                <span class="text-xs font-sans text-slate-500" data-i18n="kpiYieldUnit">MWh/thn</span>
+              </div>
+              <div id="pysam-curt-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamCapex">Total CAPEX</div>
+              <div class="mt-0.5 flex items-baseline gap-1.5">
+                <span id="pysam-capex-total" class="text-2xl font-sans font-bold text-slate-900 tabular-nums">0</span>
+              </div>
+              <div id="pysam-capex-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase mb-1" data-i18n="pysamCapexTitle">Rincian CAPEX</div>
+              <div id="pysam-capex" class="text-xs font-sans"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase mb-1" data-i18n="pysamEconDetailTitle">Metrik ekonomi</div>
+              <div id="pysam-econ-detail" class="text-xs font-sans"></div>
+            </div>
+          </div>
           <div class="grid sm:grid-cols-2 gap-4 mt-4">
             <div>
               <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="pysamPerSlope">Per lereng (PySAM)</div>
@@ -440,6 +483,7 @@
                       <th class="py-1 pr-2 font-medium text-right" data-i18n="pysamColTilt">Tilt</th>
                       <th class="py-1 pr-2 font-medium text-right" data-i18n="pysamColAzimuth">Azimuth</th>
                       <th class="py-1 pr-2 font-medium text-right" data-i18n="pysamColShading">Shading</th>
+                      <th class="py-1 pr-2 font-medium text-right" data-i18n="pysamColYield">Yield</th>
                       <th class="py-1 font-medium text-right" data-i18n="pysamColKwh">Energi</th>
                     </tr>
                   </thead>
@@ -449,26 +493,33 @@
               <div id="pysam-battery" class="text-xs font-sans text-slate-600 mt-3"></div>
             </div>
             <div>
-              <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="pysamMonthly">Energi PV per bulan (PySAM)</div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="pysamMonthly">Energi per bulan: PV, impor, ekspor</div>
               <div id="pysam-months" class="flex items-end gap-1 h-16"></div>
               <div id="pysam-month-labels" class="flex gap-1 mt-1"></div>
+              <div class="flex flex-wrap items-center gap-4 text-[11px] font-sans text-slate-500 mt-2">
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#D97706] inline-block"></span><span data-i18n="pysamMonthPv">PV</span></span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#BB1326] inline-block"></span><span data-i18n="pysamMonthImport">Impor</span></span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-slate-400 inline-block"></span><span data-i18n="pysamMonthExport">Ekspor</span></span>
+              </div>
               <p class="text-[11px] font-sans text-slate-400 mt-3" data-i18n="pysamNote">Tiap lereng dijalankan sebagai sistem PVWatts sendiri dengan rasio DC/AC yang sama; shading raycast masuk lewat losses per lereng. Asumsi ekonomi adalah ilustrasi, bukan penawaran vendor.</p>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- SECTION 04: 24-HOUR DISPATCH PROFILE (SIMPLE RULE-BASED) -->
+      <!-- SECTION 04: 24-HOUR DISPATCH PROFILE -->
       <section class="bg-bgcard border border-slate-200 rounded-xl p-4">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div>
-            <span class="text-xs font-sans uppercase tracking-wider text-bess font-semibold" data-i18n="sec04">04 · PROFIL DISPATCH 24 JAM (ATURAN SEDERHANA)</span>
-            <p class="text-xs text-slate-500" data-i18n="sec04Desc">Profil pembangkitan PV, pengisian/pengosongan BESS, dan pemangkasan beban puncak (Peak Shaving)</p>
+            <span id="sec04-title" class="text-xs font-sans uppercase tracking-wider text-bess font-semibold">04 · PROFIL DISPATCH 24 JAM (ATURAN SEDERHANA)</span>
+            <p id="sec04-desc" class="text-xs text-slate-500">Profil pembangkitan PV, pengisian/pengosongan BESS, dan pemangkasan beban puncak (Peak Shaving)</p>
           </div>
-          <div class="flex items-center gap-4 text-xs font-sans">
+          <div class="flex flex-wrap items-center gap-4 text-xs font-sans">
             <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#D97706] inline-block"></span>Solar PV (kW)</span>
             <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-bess inline-block"></span>BESS SoC (%)</span>
             <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block"></span><span data-i18n="legendLoad">Beban Site (kW)</span></span>
+            <span id="legend-grid-import" class="hidden flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#BB1326] inline-block"></span><span data-i18n="legendGridImport">Impor Grid (kW)</span></span>
+            <span id="legend-battery" class="hidden flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#16A34A] inline-block"></span><span data-i18n="legendBattery">Baterai (kW)</span></span>
           </div>
         </div>
         <div class="w-full h-36">
@@ -480,11 +531,11 @@
   </div>
 
   <!-- Modular JS Scripts -->
-  <script src="js/energy-model.js?v=8"></script>
+  <script src="js/energy-model.js?v=9"></script>
   <script src="js/solar.js?v=7"></script>
   <script src="js/scene3d.js?v=8"></script>
   <script src="js/shading.js?v=8"></script>
-  <script src="js/i18n.js?v=9"></script>
-  <script src="js/main.js?v=10"></script>
+  <script src="js/i18n.js?v=10"></script>
+  <script src="js/main.js?v=11"></script>
 </body>
 </html>

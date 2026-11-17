@@ -313,6 +313,38 @@ function fmtIdrJuta(rp) {
   return 'Rp ' + v.replace('.', ',') + ' jt';
 }
 
+// True when a simulation result exists and the current inputs still match
+// the payload it was computed from.
+function pysamIsFresh() {
+  if (!pysamResult) return false;
+  return JSON.stringify(buildPysamPayload()) === pysamFingerprint;
+}
+
+// Section 04 chart: simulation typical-day when a fresh result exists,
+// otherwise the quick synthetic profiles. The title follows the source.
+function renderDispatchChart(metrics) {
+  const titleEl = document.getElementById('sec04-title');
+  const descEl = document.getElementById('sec04-desc');
+  const gridLegend = document.getElementById('legend-grid-import');
+  const battLegend = document.getElementById('legend-battery');
+  const canvas = document.getElementById('dispatch-chart');
+  const sim = pysamIsFresh() ? pysamResult : null;
+  if (sim && sim.typical_day) {
+    const mode = sim.dispatch && sim.dispatch.mode === 'pysam' ? 'PySAM' : 'MILP';
+    if (titleEl) titleEl.textContent = I18n.t('sec04Sim', { mode });
+    if (descEl) descEl.textContent = I18n.t('sec04SimDesc');
+    if (gridLegend) gridLegend.classList.remove('hidden');
+    if (battLegend) battLegend.classList.remove('hidden');
+    EnergyModel.drawDispatchChart(canvas, AppState, metrics, sim.typical_day);
+  } else {
+    if (titleEl) titleEl.textContent = I18n.t('sec04');
+    if (descEl) descEl.textContent = I18n.t('sec04Desc');
+    if (gridLegend) gridLegend.classList.add('hidden');
+    if (battLegend) battLegend.classList.add('hidden');
+    EnergyModel.drawDispatchChart(canvas, AppState, metrics, null);
+  }
+}
+
 function renderPysamUI() {
   const statusEl = document.getElementById('pysam-status');
   const resultsEl = document.getElementById('pysam-results');
@@ -335,7 +367,7 @@ function renderPysamUI() {
     return;
   }
 
-  const stale = JSON.stringify(buildPysamPayload()) !== pysamFingerprint;
+  const stale = !pysamIsFresh();
   statusEl.textContent = stale ? I18n.t('pysamStale') : '';
   resultsEl.classList.remove('hidden');
 
@@ -373,7 +405,68 @@ function renderPysamUI() {
     ? I18n.t('pysamQuickCompare', { v: pysamQuickMwh.toFixed(1) })
     : '';
 
+  // Second KPI row: specific yield, self-consumed energy, curtailment.
+  document.getElementById('pysam-yield').textContent = r.annual_kwh.specific_yield_kwh_per_kwp.toFixed(0);
+  document.getElementById('pysam-yield-sub').textContent = I18n.t('pysamYieldSub', {
+    kwp: r.inputs.pv_kwp.toFixed(1)
+  });
+  document.getElementById('pysam-used').textContent = (r.annual_kwh.self_consumption_kwh / 1000).toFixed(1);
+  document.getElementById('pysam-used-sub').textContent = I18n.t('pysamSelfConsumedSub', {
+    direct: (r.annual_kwh.pv_to_load / 1000).toFixed(1),
+    via: (r.annual_kwh.battery_to_load / 1000).toFixed(1)
+  });
+  document.getElementById('pysam-curt').textContent = ((r.annual_kwh.curtailed_kwh || 0) / 1000).toFixed(2);
+  document.getElementById('pysam-curt-sub').textContent = I18n.t('pysamCurtailedSub', {
+    exp: (r.annual_kwh.export / 1000).toFixed(1)
+  });
+
   const econ = r.economics && r.economics.summary;
+  document.getElementById('pysam-capex-total').textContent = econ ? fmtIdrJuta(econ.capex_rp) : '-';
+  document.getElementById('pysam-capex-sub').textContent = econ
+    ? I18n.t('pysamCapexSub', { save: fmtIdrJuta(econ.savings_year1_rp), opex: fmtIdrJuta(econ.opex_year1_rp) })
+    : '';
+
+  // CAPEX breakdown + full economic metrics (every KPI from the response).
+  const kvRow = (label, value, strong) => {
+    const row = document.createElement('div');
+    row.className = 'flex justify-between gap-3 py-0.5' + (strong ? ' border-t border-slate-200 mt-0.5 pt-1 font-semibold' : '');
+    const l = document.createElement('span');
+    l.className = 'text-slate-500';
+    l.textContent = label;
+    const v = document.createElement('span');
+    v.className = 'tabular-nums text-slate-700' + (strong ? ' text-slate-900' : '');
+    v.textContent = value;
+    row.appendChild(l);
+    row.appendChild(v);
+    return row;
+  };
+  const capexEl = document.getElementById('pysam-capex');
+  if (capexEl) {
+    capexEl.innerHTML = '';
+    const comp = r.economics && r.economics.capex_components_rp;
+    if (comp && econ) {
+      capexEl.appendChild(kvRow(I18n.t('pysamCapexPv'), fmtIdrJuta(comp.pv_rp)));
+      capexEl.appendChild(kvRow(I18n.t('pysamCapexBattery'), fmtIdrJuta(comp.battery_rp)));
+      capexEl.appendChild(kvRow(I18n.t('pysamCapexPcs'), fmtIdrJuta(comp.pcs_rp)));
+      if (comp.other_rp > 0) capexEl.appendChild(kvRow(I18n.t('pysamCapexOther'), fmtIdrJuta(comp.other_rp)));
+      capexEl.appendChild(kvRow(I18n.t('pysamCapexContingency'), fmtIdrJuta(comp.contingency_rp)));
+      capexEl.appendChild(kvRow(I18n.t('pysamCapexTotalRow'), fmtIdrJuta(econ.capex_rp), true));
+    }
+  }
+  const econDetailEl = document.getElementById('pysam-econ-detail');
+  if (econDetailEl) {
+    econDetailEl.innerHTML = '';
+    if (econ) {
+      const yrs = (v) => (v != null ? v.toFixed(1) + ' ' + I18n.t('pysamYearsShort') : '-');
+      econDetailEl.appendChild(kvRow(I18n.t('pysamEconBcr'), econ.benefit_cost_ratio != null ? econ.benefit_cost_ratio.toFixed(2) : '-'));
+      econDetailEl.appendChild(kvRow(I18n.t('pysamEconRoi'), econ.roi_lifetime_percent.toFixed(1) + '%'));
+      econDetailEl.appendChild(kvRow(I18n.t('pysamEconDiscPayback'), yrs(econ.discounted_payback_years)));
+      econDetailEl.appendChild(kvRow(I18n.t('pysamEconNetCash'), fmtIdrJuta(econ.net_cashflow_year1_rp)));
+      econDetailEl.appendChild(kvRow(I18n.t('pysamEconDelivered'), (econ.delivered_net_year1_kwh / 1000).toFixed(1) + ' MWh'));
+      econDetailEl.appendChild(kvRow(I18n.t('pysamEconOpex'), fmtIdrJuta(econ.opex_year1_rp)));
+    }
+  }
+
   document.getElementById('pysam-econ').textContent = econ
     ? I18n.t('pysamEconLine', {
       npv: fmtIdrJuta(econ.npv_rp),
@@ -387,8 +480,10 @@ function renderPysamUI() {
     rte: r.battery.roundtrip_efficiency_percent.toFixed(1),
     smin: r.battery.soc_min_percent.toFixed(0),
     smax: r.battery.soc_max_percent.toFixed(0),
+    ch: (r.battery.throughput_charge_kwh / 1000).toFixed(1),
     thr: (r.battery.throughput_discharge_kwh / 1000).toFixed(1),
-    cyc: r.battery.equivalent_full_cycles.toFixed(1)
+    cyc: r.battery.equivalent_full_cycles.toFixed(1),
+    cap: r.battery.computed_bank_capacity_kwh.toFixed(0)
   });
 
   const tbody = document.getElementById('pysam-slopes');
@@ -402,6 +497,7 @@ function renderPysamUI() {
       s.tilt_deg.toFixed(0) + '°',
       s.azimuth_deg.toFixed(0) + '°',
       s.shading_percent.toFixed(1) + '%',
+      s.specific_yield_kwh_per_kwp.toFixed(0),
       (s.annual_kwh / 1000).toFixed(1) + ' MWh'
     ];
     cells.forEach((text, i) => {
@@ -418,13 +514,26 @@ function renderPysamUI() {
   monthsEl.innerHTML = '';
   labelsEl.innerHTML = '';
   const names = MONTH_NAMES[I18n.lang] || MONTH_NAMES.en;
-  const maxM = Math.max.apply(null, r.monthly_kwh.pv.concat([1]));
-  r.monthly_kwh.pv.forEach((kwh, i) => {
-    const bar = document.createElement('div');
-    bar.className = 'flex-1 rounded-t bg-[#D97706] min-h-[2px]';
-    bar.style.height = Math.max(2, (kwh / maxM) * 100) + '%';
-    bar.title = names[i] + ': ' + (kwh / 1000).toFixed(2) + ' MWh';
-    monthsEl.appendChild(bar);
+  const pvM = r.monthly_kwh.pv;
+  const impM = r.monthly_kwh.import || pvM.map(() => 0);
+  const expM = r.monthly_kwh.export || pvM.map(() => 0);
+  const maxM = Math.max.apply(null, pvM.concat(impM, expM, [1]));
+  const series = [
+    { values: pvM, cls: 'bg-[#D97706]', label: I18n.t('pysamMonthPv') },
+    { values: impM, cls: 'bg-[#BB1326]', label: I18n.t('pysamMonthImport') },
+    { values: expM, cls: 'bg-slate-400', label: I18n.t('pysamMonthExport') }
+  ];
+  pvM.forEach((kwh, i) => {
+    const group = document.createElement('div');
+    group.className = 'flex-1 flex items-end gap-[2px] h-full';
+    series.forEach((s) => {
+      const bar = document.createElement('div');
+      bar.className = 'flex-1 rounded-t min-h-[2px] ' + s.cls;
+      bar.style.height = Math.max(2, (s.values[i] / maxM) * 100) + '%';
+      bar.title = names[i] + ' · ' + s.label + ': ' + (s.values[i] / 1000).toFixed(2) + ' MWh';
+      group.appendChild(bar);
+    });
+    monthsEl.appendChild(group);
     const lab = document.createElement('div');
     lab.className = 'flex-1 text-center text-[10px] font-sans text-slate-400';
     lab.textContent = names[i];
@@ -494,8 +603,8 @@ function updateAll() {
   document.getElementById('kpi-savings').textContent = formatCurrency(metrics);
   document.getElementById('kpi-co2').textContent = I18n.t('co2Avoided', { v: metrics.co2Tonnes.toFixed(1) });
 
-  // Draw 24h Dispatch Chart
-  EnergyModel.drawDispatchChart(document.getElementById('dispatch-chart'), AppState, metrics);
+  // Draw 24h Dispatch Chart (simulation results when fresh, else quick estimate)
+  renderDispatchChart(metrics);
 
   // Shading section (status + results, re-translated on language change)
   renderShadingUI();
