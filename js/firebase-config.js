@@ -1,16 +1,16 @@
 // Firebase configuration for login (public client config, safe to ship
 // in a public page: the apiKey identifies the project, it is not a secret).
 //
-// BELUM DIISI: ganti nilai "PASTE-..." di bawah dengan config dari
-// Firebase console (Project settings > Your apps > Web app) setelah
-// Firebase Authentication diaktifkan untuk project ini. Selama apiKey
-// masih "PASTE-API-KEY-HERE", tombol Masuk menampilkan pesan bahwa
-// login belum disiapkan, dan simulasi detail tetap terbuka (mode lama).
+// Diisi 17 Nov 2026 dari Firebase console (Project settings > Your apps >
+// Web app), project plnyes. Login aktif di frontend; penegakan kuota di
+// backend aktif setelah env FIREBASE_PROJECT_ID diset di Cloud Run.
 const FIREBASE_CONFIG = {
-  apiKey: "PASTE-API-KEY-HERE",
-  authDomain: "PASTE-AUTH-DOMAIN",
-  projectId: "PASTE-PROJECT-ID",
-  storageBucket: "PASTE-STORAGE-BUCKET",
-  messagingSenderId: "PASTE-SENDER-ID",
-  appId: "PASTE-APP-ID"
+  apiKey: "AIzaSyBOLzNV08D71CrwOmYPYl7_Uw2OIG5R1RA",
+  authDomain: "plnyes.firebaseapp.com",
+  databaseURL: "https://plnyes.firebaseio.com",
+  projectId: "plnyes",
+  storageBucket: "plnyes.appspot.com",
+  messagingSenderId: "451921864170",
+  appId: "1:451921864170:web:3f3d01f00d55657e0dbe93",
+  measurementId: "G-84Z4YGKHFH"
 };
