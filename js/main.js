@@ -340,6 +340,22 @@ function renderPysamUI() {
   resultsEl.classList.remove('hidden');
 
   const r = pysamResult;
+  const dispatchEl = document.getElementById('pysam-dispatch');
+  if (dispatchEl) {
+    const d = r.dispatch;
+    if (d && d.mode === 'milp') {
+      dispatchEl.textContent = I18n.t('pysamDispatchMilp', {
+        curt: ((r.annual_kwh.curtailed_kwh || 0) / 1000).toFixed(2),
+        t: d.solve_seconds != null ? d.solve_seconds.toFixed(1) : '-',
+        status: d.termination_condition || '-'
+      });
+    } else if (d && d.mode === 'pysam') {
+      dispatchEl.textContent = I18n.t('pysamDispatchPysam');
+    } else {
+      dispatchEl.textContent = '';
+    }
+  }
+
   document.getElementById('pysam-pv').textContent = (r.annual_kwh.pv / 1000).toFixed(1);
   document.getElementById('pysam-sc').textContent = r.annual_kwh.self_consumption_percent.toFixed(1);
   document.getElementById('pysam-ss').textContent = r.annual_kwh.self_sufficiency_percent.toFixed(1);
