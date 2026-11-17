@@ -4,9 +4,12 @@
 // Diisi 17 Nov 2026 dari Firebase console (Project settings > Your apps >
 // Web app), project plnyes. Login aktif di frontend; penegakan kuota di
 // backend aktif setelah env FIREBASE_PROJECT_ID diset di Cloud Run.
+// authDomain memakai domain kustom auth.ardiancandra.com (CNAME ke
+// plnyes.firebaseapp.com + terdaftar di Firebase Hosting) supaya layar
+// pilih akun Google menampilkan domain sendiri, bukan plnyes.firebaseapp.com.
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBOLzNV08D71CrwOmYPYl7_Uw2OIG5R1RA",
-  authDomain: "plnyes.firebaseapp.com",
+  authDomain: "auth.ardiancandra.com",
   databaseURL: "https://plnyes.firebaseio.com",
   projectId: "plnyes",
   storageBucket: "plnyes.appspot.com",
