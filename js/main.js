@@ -1665,6 +1665,10 @@ document.addEventListener('DOMContentLoaded', () => {
     I18n.setLanguage(I18n.lang === 'id' ? 'en' : 'id');
     updateAll();
     updateAuthUI();
+    // Status unduhan laporan ditulis sekali saat klik; kosongkan supaya
+    // tidak tertinggal dalam bahasa lama setelah ganti bahasa.
+    const rs = document.getElementById('report-status');
+    if (rs) rs.textContent = '';
   });
 
   // Camera Presets
