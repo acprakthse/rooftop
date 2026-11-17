@@ -46,6 +46,15 @@ input[type="range"] {
   }
 }
 
+/* Sidebar tab panels: on desktop only the active section shows (the icon
+   rail switches panels); below lg there is no rail, so all sections stay
+   stacked and the class has no effect. */
+@media (min-width: 1024px) {
+  #sidebar section.panel-hidden {
+    display: none;
+  }
+}
+
 /* Icon rail: active section button (grey highlight, brand blue icon) */
 .rail-btn.active {
   background-color: #F2F4F5;

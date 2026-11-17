@@ -30,7 +30,7 @@
     }
   </script>
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=7" />
+  <link rel="stylesheet" href="css/style.css?v=8" />
   <!-- Three.js & OrbitControls -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -73,6 +73,12 @@
       </button>
       <button data-section="section-03" class="rail-btn w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="BESS & Surya" aria-label="BESS & Surya">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="17" height="9" rx="2"/><path d="M22 11v3"/><path d="M6 11v3"/><path d="M10 11v3"/></svg>
+      </button>
+      <button data-section="section-04" class="rail-btn w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="Profil Beban" aria-label="Profil Beban">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M2 20h20"/></svg>
+      </button>
+      <button data-section="section-05" class="rail-btn w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="Cuaca / EPW" aria-label="Cuaca / EPW">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.9 4.9l1.4 1.4"/><path d="M17.7 17.7l1.4 1.4"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M4.9 19.1l1.4-1.4"/><path d="M17.7 6.3l1.4-1.4"/></svg>
       </button>
       <button id="rail-collapse-btn" class="rail-btn mt-auto w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="Sembunyikan panel" aria-label="Sembunyikan panel">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
@@ -201,6 +207,17 @@
             <span><span data-i18n="obstacleLabel">Obstacle / Modul Nonaktif:</span> <strong id="obstacle-count" class="text-brand font-sans">0</strong></span>
             <button id="clear-obstacles" class="text-xs font-sans text-bess hover:underline" data-i18n="resetObstacles">Reset Obstacle</button>
           </div>
+
+          <div class="pt-2 border-t border-slate-200">
+            <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="moduleUploadTitle">Modul custom (upload CSV)</div>
+            <div class="flex flex-wrap gap-2">
+              <label for="module-file" class="cursor-pointer px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition" data-i18n="uploadCsv">Upload CSV</label>
+              <input id="module-file" type="file" accept=".csv" class="hidden" />
+              <button id="module-template" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition" data-i18n="downloadTemplate">Template CSV</button>
+              <button id="module-clear" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition hidden" data-i18n="clearCustom">Hapus</button>
+            </div>
+            <p id="module-status" class="text-[11px] font-sans text-slate-500 mt-1.5" data-i18n="moduleStatusDefault">Belum ada modul custom. CSV berisi satu modul: nama, daya, dimensi, efisiensi, koefisien suhu.</p>
+          </div>
         </div>
       </section>
 
@@ -264,6 +281,83 @@
             <input id="wind-direction" type="range" min="0" max="355" step="5" value="90" class="w-full accent-[#12579B]" />
             <p class="text-[11px] text-slate-500 mt-1" data-i18n="windHint">Arah tiupan angin, ditunjukkan panah di viewport 3D</p>
           </div>
+
+          <div class="pt-2 border-t border-slate-200">
+            <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="bessUploadTitle">BESS custom (upload CSV)</div>
+            <div class="flex flex-wrap gap-2">
+              <label for="bess-file" class="cursor-pointer px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition" data-i18n="uploadCsv">Upload CSV</label>
+              <input id="bess-file" type="file" accept=".csv" class="hidden" />
+              <button id="bess-template" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition" data-i18n="downloadTemplate">Template CSV</button>
+              <button id="bess-clear" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition hidden" data-i18n="clearCustom">Hapus</button>
+            </div>
+            <p id="bess-status" class="text-[11px] font-sans text-slate-500 mt-1.5" data-i18n="bessStatusDefault">Belum ada BESS custom. CSV berisi satu sistem baterai: nama, kapasitas, daya, RTE, DoD.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 04: LOAD PROFILE -->
+      <section id="section-04" class="p-4 border-b border-slate-200 panel-hidden">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-[11px] font-sans uppercase tracking-wider text-slate-500 font-semibold" data-i18n="sec04panel">04 · PROFIL BEBAN</span>
+          <span class="text-[11px] font-sans text-slate-400">Manual / CSV</span>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs text-slate-600 mb-1" data-i18n="loadModeLabel">Sumber profil beban</label>
+            <select id="load-mode" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
+              <option value="auto" data-i18n="loadModeAuto">Otomatis (dari kWp terpasang)</option>
+              <option value="manual" data-i18n="loadModeManual">Manual sederhana</option>
+              <option value="csv" data-i18n="loadModeCsv">Upload CSV (8760 jam)</option>
+            </select>
+          </div>
+
+          <div id="load-manual" class="space-y-3 hidden">
+            <div>
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="loadAnnualLabel">Konsumsi tahunan (kWh/thn)</label>
+              <input id="load-annual" type="number" min="1000" step="1000" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="loadShapeLabel">Bentuk profil harian</label>
+              <select id="load-shape" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
+                <option value="commercial" data-i18n="loadShapeCommercial">Komersial (siang + malam)</option>
+                <option value="office" data-i18n="loadShapeOffice">Perkantoran (hari kerja, siang)</option>
+                <option value="residential" data-i18n="loadShapeResidential">Residensial (pagi + malam)</option>
+                <option value="flat" data-i18n="loadShapeFlat">Datar (beban konstan)</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="load-csv" class="space-y-2 hidden">
+            <div class="flex flex-wrap gap-2">
+              <label for="load-file" class="cursor-pointer px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition" data-i18n="uploadCsv">Upload CSV</label>
+              <input id="load-file" type="file" accept=".csv" class="hidden" />
+              <button id="load-template" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition" data-i18n="downloadTemplate">Template CSV</button>
+              <button id="load-clear" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition hidden" data-i18n="clearCustom">Hapus</button>
+            </div>
+            <p class="text-[11px] text-slate-500" data-i18n="loadCsvHint">CSV 8760 baris: hour (0-8759), load_kw. Unduh template, isi di Excel, lalu upload.</p>
+          </div>
+
+          <p id="load-status" class="text-[11px] font-sans text-slate-500"></p>
+        </div>
+      </section>
+
+      <!-- SECTION 05: WEATHER / EPW -->
+      <section id="section-05" class="p-4 panel-hidden">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-[11px] font-sans uppercase tracking-wider text-slate-500 font-semibold" data-i18n="sec05panel">05 · CUACA / EPW</span>
+          <span class="text-[11px] font-sans text-slate-400">TMYx / EPW</span>
+        </div>
+
+        <div class="space-y-3">
+          <p id="weather-status" class="text-xs font-sans text-slate-600"></p>
+          <div class="flex flex-wrap gap-2">
+            <label for="epw-file" class="cursor-pointer px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition" data-i18n="uploadEpw">Upload EPW</label>
+            <input id="epw-file" type="file" accept=".epw" class="hidden" />
+            <button id="epw-clear" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition hidden" data-i18n="epwClear">Kembali ke TMYx</button>
+          </div>
+          <p class="text-[11px] text-slate-500" data-i18n="epwHint">File .epw sendiri dipakai sebagai cuaca simulasi menggantikan file TMYx lokasi. Header EPW dibaca untuk nama lokasi, lintang/bujur, dan PSH.</p>
+          <div id="epw-info" class="text-[11px] font-sans text-slate-600 hidden"></div>
         </div>
       </section>
 
@@ -533,9 +627,9 @@
   <!-- Modular JS Scripts -->
   <script src="js/energy-model.js?v=9"></script>
   <script src="js/solar.js?v=7"></script>
-  <script src="js/scene3d.js?v=8"></script>
+  <script src="js/scene3d.js?v=9"></script>
   <script src="js/shading.js?v=8"></script>
-  <script src="js/i18n.js?v=10"></script>
-  <script src="js/main.js?v=11"></script>
+  <script src="js/i18n.js?v=11"></script>
+  <script src="js/main.js?v=12"></script>
 </body>
 </html>

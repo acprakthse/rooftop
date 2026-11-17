@@ -13,6 +13,7 @@ const AppState = {
   roofSetback: 0.8,
   panelOrientation: 'portrait',
   panelWp: 610,
+  customModule: null, // uploaded PV module spec {name, wp, length, width, ...} or null
   rowGap: 0.35,
   rackTilt: 12,
   bessChemistry: 'LFP',
@@ -60,6 +61,17 @@ let pysamFingerprint = '';
 let pysamRunning = false;
 let pysamQuickMwh = null; // quick-estimate yield at run time, for comparison
 
+// ---- User-supplied input data (uploads + manual load) ----
+// Load profile: auto (annual load derived from kWp, commercial shape),
+// manual (annual kWh + shape preset), or csv (uploaded 8760 hourly kW).
+let loadInput = { mode: 'auto', annualKwh: null, shape: 'commercial', csv: null, error: null };
+// Weather: tmy (built-in TMYx per location) or epw (uploaded .epw file).
+// prevLocation remembers the TMYx location the EPW replaced, so the API
+// still gets a valid location code alongside the uploaded file.
+let weatherInput = { mode: 'tmy', prevLocation: null, epw: null, error: null };
+// Custom BESS from an uploaded CSV spec (null = built-in chemistry).
+let customBess = null;
+
 const MONTH_NAMES = {
   id: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
   en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -71,6 +83,7 @@ function geometryFingerprint() {
     AppState.roofWidth, AppState.roofTilt, AppState.wallHeight,
     AppState.roofSetback, AppState.panelOrientation, AppState.rowGap,
     AppState.rackTilt, AppState.bessKwh, AppState.siteLocation,
+    AppState.customModule,
     [...Scene3D.disabledSlots].sort()
   ]);
 }
@@ -230,17 +243,33 @@ function buildPysamPayload() {
       shading_percent: Math.round(shading * 100) / 100
     });
   }
-  const annualLoadKwh = lastMetrics
-    ? EnergyModel.annualLoadKwh(AppState, lastMetrics)
-    : 0;
-  return {
-    location: AppState.siteLocation,
+  const annualLoadKwh = effectiveAnnualLoadKwh();
+  const payload = {
+    location: weatherInput.mode === 'epw' && weatherInput.epw
+      ? weatherInput.prevLocation
+      : AppState.siteLocation,
     slopes,
     bess_power_kw: AppState.bessKw,
     bess_capacity_kwh: AppState.bessKwh,
     annual_load_kwh: Math.round(annualLoadKwh),
     include_economics: true
   };
+  // Manual load: the API builds the 8760h profile from annual kWh + shape.
+  if (loadInput.mode === 'manual') payload.load_profile_type = loadInput.shape;
+  // Uploaded load profile: the full 8760 hourly values go to the API.
+  if (loadInput.mode === 'csv' && loadInput.csv) payload.load_profile_kw = loadInput.csv.hours;
+  // Custom BESS: efficiency + SoC window from the uploaded spec. DoD maps
+  // to a SoC window of [100-DoD, 100], e.g. DoD 90% -> SoC 10-100%.
+  if (customBess) {
+    payload.batt_eff_charge_percent = customBess.rte * 100;
+    payload.batt_eff_discharge_percent = customBess.rte * 100;
+    payload.soc_min_percent = Math.round((1 - customBess.dod) * 100);
+    payload.soc_max_percent = 100;
+  }
+  // The EPW file itself travels as multipart; its name rides along so the
+  // fingerprint (and the API log) still identifies the weather used.
+  if (weatherInput.mode === 'epw' && weatherInput.epw) payload.epw_name = weatherInput.epw.name;
+  return payload;
 }
 
 async function runPysamSimulation() {
@@ -276,6 +305,12 @@ async function runPysamSimulation() {
       }
     }
 
+    // CSV load mode needs an uploaded file before simulating.
+    if (loadInput.mode === 'csv' && !loadInput.csv) {
+      if (statusEl) statusEl.textContent = I18n.t('loadStatusCsvMissing');
+      return;
+    }
+
     const payload = buildPysamPayload();
     if (statusEl) statusEl.textContent = I18n.t('pysamRunningApi');
     if (runBtn) runBtn.textContent = I18n.t('pysamRunningApi');
@@ -283,12 +318,24 @@ async function runPysamSimulation() {
     const timer = setTimeout(() => controller.abort(), 180000);
     let response;
     try {
-      response = await fetch(PYSAM_API_URL + '/simulate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
+      if (weatherInput.mode === 'epw' && weatherInput.epw) {
+        // Uploaded EPW: dedicated multipart endpoint (JSON payload + .epw file).
+        const form = new FormData();
+        form.append('payload', JSON.stringify(payload));
+        form.append('epw', new Blob([weatherInput.epw.text], { type: 'text/plain' }), weatherInput.epw.name);
+        response = await fetch(PYSAM_API_URL + '/simulate-epw', {
+          method: 'POST',
+          body: form,
+          signal: controller.signal
+        });
+      } else {
+        response = await fetch(PYSAM_API_URL + '/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+      }
     } finally {
       clearTimeout(timer);
     }
@@ -311,6 +358,401 @@ function fmtIdrJuta(rp) {
   const juta = rp / 1e6;
   const v = Math.abs(juta) >= 100 ? juta.toFixed(0) : juta.toFixed(1);
   return 'Rp ' + v.replace('.', ',') + ' jt';
+}
+
+// ---- User-supplied input data: CSV/EPW parsing, templates, uploads ----
+
+function parseCsv(text) {
+  // Minimal CSV parser: comma-separated, optional double-quoted fields.
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+  if (lines.length === 0) return { header: [], rows: [] };
+  const splitLine = (line) => {
+    const out = [];
+    let cur = '', quoted = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') quoted = !quoted;
+      else if (c === ',' && !quoted) { out.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    out.push(cur.trim());
+    return out;
+  };
+  return { header: splitLine(lines[0]).map((h) => h.toLowerCase()), rows: lines.slice(1).map(splitLine) };
+}
+
+function downloadTextFile(filename, text) {
+  const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+
+// Annual load (kWh/yr) actually in effect: manual input, uploaded CSV
+// total, or the automatic value derived from installed kWp.
+function effectiveAnnualLoadKwh() {
+  if (loadInput.mode === 'manual' && loadInput.annualKwh) return loadInput.annualKwh;
+  if (loadInput.mode === 'csv' && loadInput.csv) return loadInput.csv.totalKwh;
+  return lastMetrics ? EnergyModel.annualLoadKwh(AppState, lastMetrics) : 0;
+}
+
+function renderLoadUI() {
+  const statusEl = document.getElementById('load-status');
+  const manualEl = document.getElementById('load-manual');
+  const csvEl = document.getElementById('load-csv');
+  const clearBtn = document.getElementById('load-clear');
+  if (manualEl) manualEl.classList.toggle('hidden', loadInput.mode !== 'manual');
+  if (csvEl) csvEl.classList.toggle('hidden', loadInput.mode !== 'csv');
+  if (clearBtn) clearBtn.classList.toggle('hidden', !loadInput.csv);
+  if (!statusEl) return;
+  if (loadInput.error) {
+    statusEl.textContent = loadInput.error;
+    return;
+  }
+  if (loadInput.mode === 'manual') {
+    const shapeKey = { commercial: 'loadShapeCommercial', office: 'loadShapeOffice', residential: 'loadShapeResidential', flat: 'loadShapeFlat' }[loadInput.shape] || 'loadShapeCommercial';
+    statusEl.textContent = I18n.t('loadStatusManual', {
+      v: (effectiveAnnualLoadKwh() / 1000).toFixed(1),
+      shape: I18n.t(shapeKey)
+    });
+  } else if (loadInput.mode === 'csv') {
+    statusEl.textContent = loadInput.csv
+      ? I18n.t('loadStatusCsv', { name: loadInput.csv.name, v: (loadInput.csv.totalKwh / 1000).toFixed(1), p: loadInput.csv.peakKw.toFixed(1) })
+      : I18n.t('loadStatusCsvMissing');
+  } else {
+    statusEl.textContent = I18n.t('loadStatusAuto', {
+      v: (effectiveAnnualLoadKwh() / 1000).toFixed(1),
+      kwp: lastMetrics ? lastMetrics.kwp.toFixed(1) : '0'
+    });
+  }
+}
+
+function renderWeatherUI() {
+  const statusEl = document.getElementById('weather-status');
+  if (!statusEl) return;
+  if (weatherInput.error) {
+    statusEl.textContent = weatherInput.error;
+    return;
+  }
+  if (weatherInput.mode === 'epw' && weatherInput.epw) {
+    statusEl.textContent = I18n.t('weatherStatusEpw', { name: weatherInput.epw.name });
+  } else {
+    const loc = EnergyModel.locations[AppState.siteLocation] || EnergyModel.locations.jakarta;
+    statusEl.textContent = I18n.t('weatherStatusTmy', { loc: loc.name });
+  }
+}
+
+// EPW weather file: header LOCATION line + 8760 hourly rows. GHI is field
+// 13 and DHI field 15 (0-based) of each data row, in Wh/m2.
+function parseEpw(text) {
+  const lines = text.split(/\r?\n/);
+  if (lines.length < 9 || !lines[0].startsWith('LOCATION')) {
+    throw new Error(I18n.t('epwErrorHeader'));
+  }
+  const loc = lines[0].split(',');
+  const dataRows = lines.slice(8).filter((l) => l.trim().length > 0);
+  if (dataRows.length !== 8760) throw new Error(I18n.t('epwErrorRows', { n: dataRows.length }));
+  let ghi = 0, dhi = 0;
+  for (const row of dataRows) {
+    const f = row.split(',');
+    ghi += parseFloat(f[13]) || 0;
+    dhi += parseFloat(f[15]) || 0;
+  }
+  const ghiKwh = ghi / 1000;
+  const lat = parseFloat(loc[6]);
+  const lon = parseFloat(loc[7]);
+  return {
+    name: (loc[1] || 'EPW').trim() || 'EPW',
+    lat: isNaN(lat) ? null : lat,
+    lon: isNaN(lon) ? null : lon,
+    ghiKwhM2: ghiKwh,
+    psh: ghiKwh / 365,
+    diffuseFraction: ghi > 0 ? dhi / ghi : null
+  };
+}
+
+async function onEpwFile(file) {
+  const infoEl = document.getElementById('epw-info');
+  const clearBtn = document.getElementById('epw-clear');
+  try {
+    const text = await readFileAsText(file);
+    const parsed = parseEpw(text);
+    const prevLocation = AppState.siteLocation === 'CUSTOM_EPW' ? weatherInput.prevLocation : AppState.siteLocation;
+    const base = EnergyModel.locations[prevLocation] || EnergyModel.locations.jakarta;
+    // The quick estimate + shading use this location entry while the EPW
+    // is active; tariffs come from the site it replaces.
+    EnergyModel.locations.CUSTOM_EPW = {
+      name: parsed.name, psh: parsed.psh, lat: parsed.lat != null ? parsed.lat : base.lat,
+      gridEf: base.gridEf, tariffIdr: base.tariffIdr, tariffEur: base.tariffEur,
+      diffuseFraction: parsed.diffuseFraction != null ? parsed.diffuseFraction : base.diffuseFraction
+    };
+    weatherInput = { mode: 'epw', prevLocation, epw: { name: file.name, text, ...parsed }, error: null };
+    const sel = document.getElementById('site-location');
+    let opt = sel.querySelector('option[value="CUSTOM_EPW"]');
+    if (!opt) {
+      opt = document.createElement('option');
+      opt.value = 'CUSTOM_EPW';
+      sel.appendChild(opt);
+    }
+    opt.textContent = 'EPW: ' + parsed.name + ' (PSH ' + parsed.psh.toFixed(1) + 'h)';
+    sel.value = 'CUSTOM_EPW';
+    AppState.siteLocation = 'CUSTOM_EPW';
+    if (clearBtn) clearBtn.classList.remove('hidden');
+    if (infoEl) {
+      infoEl.classList.remove('hidden');
+      infoEl.textContent = I18n.t('epwInfo', {
+        loc: parsed.name,
+        lat: parsed.lat != null ? parsed.lat.toFixed(2) : '-',
+        lon: parsed.lon != null ? parsed.lon.toFixed(2) : '-',
+        ghi: parsed.ghiKwhM2.toFixed(0),
+        psh: parsed.psh.toFixed(2),
+        diff: parsed.diffuseFraction != null ? (parsed.diffuseFraction * 100).toFixed(0) : '-'
+      });
+    }
+    updateAll();
+  } catch (err) {
+    weatherInput.error = I18n.t('epwError', { msg: err.message });
+    renderWeatherUI();
+  }
+}
+
+function clearEpw() {
+  const prev = weatherInput.prevLocation || 'jakarta';
+  weatherInput = { mode: 'tmy', prevLocation: null, epw: null, error: null };
+  delete EnergyModel.locations.CUSTOM_EPW;
+  const sel = document.getElementById('site-location');
+  const opt = sel.querySelector('option[value="CUSTOM_EPW"]');
+  if (opt) opt.remove();
+  sel.value = prev;
+  AppState.siteLocation = prev;
+  document.getElementById('epw-clear').classList.add('hidden');
+  const infoEl = document.getElementById('epw-info');
+  if (infoEl) { infoEl.classList.add('hidden'); infoEl.textContent = ''; }
+  updateAll();
+}
+
+async function onLoadFile(file) {
+  try {
+    const text = await readFileAsText(file);
+    const { header, rows } = parseCsv(text);
+    if (header.length === 0) throw new Error(I18n.t('loadErrorEmpty'));
+    // A headerless file starts with a numeric row; treat it as data.
+    let dataRows = rows;
+    if (!isNaN(parseFloat(header[0])) && !isNaN(parseFloat(header[1]))) dataRows = [header].concat(rows);
+    dataRows = dataRows.filter((r) => r.length >= 2);
+    if (dataRows.length !== 8760) throw new Error(I18n.t('loadErrorRows', { n: dataRows.length }));
+    const hours = new Array(8760);
+    for (let i = 0; i < 8760; i++) {
+      const v = parseFloat(dataRows[i][1]);
+      if (isNaN(v) || v < 0 || v > 100000) throw new Error(I18n.t('loadErrorValue', { n: i + 1, v: dataRows[i][1] }));
+      hours[i] = v;
+    }
+    const total = hours.reduce((a, b) => a + b, 0);
+    loadInput.csv = { name: file.name, hours, totalKwh: total, peakKw: Math.max.apply(null, hours) };
+    loadInput.error = null;
+    loadInput.mode = 'csv';
+    document.getElementById('load-mode').value = 'csv';
+    updateAll();
+  } catch (err) {
+    loadInput.error = err.message;
+    renderLoadUI();
+  }
+}
+
+function downloadLoadTemplate() {
+  // 8760 hourly values from the same synthetic daily shape the 24h chart
+  // draws, scaled to the current installed kWp. Edit in Excel, then upload.
+  const baseLoad = lastMetrics ? Math.max(15, lastMetrics.kwp * 0.32) : 15;
+  const day = [];
+  for (let hr = 0; hr < 24; hr++) {
+    const morningPeak = Math.exp(-0.5 * Math.pow((hr - 9) / 2.2, 2)) * 0.45;
+    const eveningPeak = Math.exp(-0.5 * Math.pow((hr - 19) / 2.0, 2)) * 0.65;
+    day.push(baseLoad * (0.6 + morningPeak + eveningPeak));
+  }
+  let csv = 'hour,load_kw\n';
+  for (let h = 0; h < 8760; h++) csv += h + ',' + day[h % 24].toFixed(2) + '\n';
+  downloadTextFile('load_profile_template.csv', csv);
+}
+
+function downloadModuleTemplate() {
+  downloadTextFile(
+    'pv_module_template.csv',
+    'name,p_mpp_w,length_m,width_m,efficiency_percent,temp_coeff_percent_per_c\n' +
+    'Contoh Modul 610W,610,2.278,1.134,21.5,-0.34\n'
+  );
+}
+
+function downloadBessTemplate() {
+  downloadTextFile(
+    'bess_template.csv',
+    'name,capacity_kwh,power_kw,rte_percent,dod_percent\n' +
+    'Contoh BESS LFP 120kWh,120,60,92,90\n'
+  );
+}
+
+function applyCustomModule(m) {
+  AppState.customModule = m;
+  const sel = document.getElementById('panel-wp');
+  let opt = sel.querySelector('option[value="custom"]');
+  if (!opt) {
+    opt = document.createElement('option');
+    opt.value = 'custom';
+    sel.appendChild(opt);
+  }
+  opt.textContent = m.name + ' (' + m.wp + ' Wp)';
+  sel.value = 'custom';
+  AppState.panelWp = m.wp;
+  const orientSel = document.getElementById('panel-orientation');
+  const pOpt = orientSel.querySelector('option[value="portrait"]');
+  const lOpt = orientSel.querySelector('option[value="landscape"]');
+  if (pOpt) pOpt.textContent = 'Portrait (' + m.width.toFixed(2) + 'm x ' + m.length.toFixed(2) + 'm)';
+  if (lOpt) lOpt.textContent = 'Landscape (' + m.length.toFixed(2) + 'm x ' + m.width.toFixed(2) + 'm)';
+  document.getElementById('module-clear').classList.remove('hidden');
+  document.getElementById('module-status').textContent = I18n.t('moduleStatusActive', {
+    name: m.name, wp: m.wp, l: m.length.toFixed(2), w: m.width.toFixed(2),
+    eff: m.efficiency != null ? m.efficiency.toFixed(1) : '-',
+    tc: m.tempCoeff != null ? m.tempCoeff.toFixed(2) : '-'
+  });
+}
+
+function clearCustomModule(resetWp) {
+  AppState.customModule = null;
+  const sel = document.getElementById('panel-wp');
+  const opt = sel.querySelector('option[value="custom"]');
+  if (opt) opt.remove();
+  const orientSel = document.getElementById('panel-orientation');
+  const pOpt = orientSel.querySelector('option[value="portrait"]');
+  const lOpt = orientSel.querySelector('option[value="landscape"]');
+  if (pOpt) pOpt.textContent = 'Portrait (1.13m × 2.27m)';
+  if (lOpt) lOpt.textContent = 'Landscape (2.27m × 1.13m)';
+  document.getElementById('module-clear').classList.add('hidden');
+  document.getElementById('module-status').textContent = I18n.t('moduleStatusDefault');
+  if (resetWp) { sel.value = '610'; AppState.panelWp = 610; }
+}
+
+async function onModuleFile(file) {
+  const statusEl = document.getElementById('module-status');
+  try {
+    const text = await readFileAsText(file);
+    const { header, rows } = parseCsv(text);
+    const need = ['name', 'p_mpp_w', 'length_m', 'width_m', 'efficiency_percent', 'temp_coeff_percent_per_c'];
+    const idx = {};
+    need.forEach((c) => { idx[c] = header.indexOf(c); });
+    if (idx.name < 0 || idx.p_mpp_w < 0 || idx.length_m < 0 || idx.width_m < 0) {
+      throw new Error(I18n.t('csvErrorHeader', { cols: header.join(', ') }));
+    }
+    if (rows.length !== 1) throw new Error(I18n.t('csvErrorRows'));
+    const r = rows[0];
+    const num = (col) => {
+      const v = parseFloat(r[idx[col]]);
+      if (isNaN(v)) throw new Error(I18n.t('csvErrorNumber', { col, v: r[idx[col]] }));
+      return v;
+    };
+    const m = {
+      name: ((r[idx.name] || 'Custom').trim() || 'Custom'),
+      wp: num('p_mpp_w'),
+      length: num('length_m'),
+      width: num('width_m'),
+      efficiency: idx.efficiency_percent >= 0 && r[idx.efficiency_percent] !== '' ? num('efficiency_percent') : null,
+      tempCoeff: idx.temp_coeff_percent_per_c >= 0 && r[idx.temp_coeff_percent_per_c] !== '' ? num('temp_coeff_percent_per_c') : null
+    };
+    const range = (v, lo, hi, col) => { if (v < lo || v > hi) throw new Error(I18n.t('csvErrorRange', { col, v })); };
+    range(m.wp, 50, 1000, 'p_mpp_w');
+    range(m.length, 0.5, 3.0, 'length_m');
+    range(m.width, 0.3, 2.0, 'width_m');
+    if (m.efficiency != null) range(m.efficiency, 5, 30, 'efficiency_percent');
+    if (m.tempCoeff != null) range(m.tempCoeff, -1.0, 0, 'temp_coeff_percent_per_c');
+    applyCustomModule(m);
+    updateAll();
+  } catch (err) {
+    if (statusEl) statusEl.textContent = I18n.t('moduleError', { msg: err.message });
+  }
+}
+
+function applyCustomBess(b) {
+  customBess = b;
+  EnergyModel.chemistries.CUSTOM = { label: b.name, rte: b.rte, dod: b.dod };
+  const sel = document.getElementById('bess-chemistry');
+  let opt = sel.querySelector('option[value="CUSTOM"]');
+  if (!opt) {
+    opt = document.createElement('option');
+    opt.value = 'CUSTOM';
+    sel.appendChild(opt);
+  }
+  opt.textContent = b.name + ' (' + Math.round(b.rte * 100) + '% RTE)';
+  sel.value = 'CUSTOM';
+  AppState.bessChemistry = 'CUSTOM';
+  AppState.bessKwh = b.capacityKwh;
+  AppState.bessKw = b.powerKw;
+  document.getElementById('bess-kwh').value = Math.min(500, b.capacityKwh);
+  document.getElementById('bess-kw').value = Math.min(500, b.powerKw);
+  document.getElementById('bess-clear').classList.remove('hidden');
+  document.getElementById('bess-status').textContent = I18n.t('bessStatusActive', {
+    name: b.name, kwh: b.capacityKwh, kw: b.powerKw,
+    rte: (b.rte * 100).toFixed(0), dod: (b.dod * 100).toFixed(0)
+  });
+}
+
+function clearCustomBess(resetChem) {
+  customBess = null;
+  delete EnergyModel.chemistries.CUSTOM;
+  const sel = document.getElementById('bess-chemistry');
+  const opt = sel.querySelector('option[value="CUSTOM"]');
+  if (opt) opt.remove();
+  document.getElementById('bess-clear').classList.add('hidden');
+  document.getElementById('bess-status').textContent = I18n.t('bessStatusDefault');
+  if (resetChem) { sel.value = 'LFP'; AppState.bessChemistry = 'LFP'; }
+}
+
+async function onBessFile(file) {
+  const statusEl = document.getElementById('bess-status');
+  try {
+    const text = await readFileAsText(file);
+    const { header, rows } = parseCsv(text);
+    const need = ['name', 'capacity_kwh', 'power_kw', 'rte_percent', 'dod_percent'];
+    const idx = {};
+    need.forEach((c) => { idx[c] = header.indexOf(c); });
+    if (need.some((c) => idx[c] < 0)) {
+      throw new Error(I18n.t('csvErrorHeader', { cols: header.join(', ') }));
+    }
+    if (rows.length !== 1) throw new Error(I18n.t('csvErrorRows'));
+    const r = rows[0];
+    const num = (col) => {
+      const v = parseFloat(r[idx[col]]);
+      if (isNaN(v)) throw new Error(I18n.t('csvErrorNumber', { col, v: r[idx[col]] }));
+      return v;
+    };
+    const b = {
+      name: ((r[idx.name] || 'Custom BESS').trim() || 'Custom BESS'),
+      capacityKwh: num('capacity_kwh'),
+      powerKw: num('power_kw'),
+      rte: num('rte_percent') / 100,
+      dod: num('dod_percent') / 100
+    };
+    const range = (v, lo, hi, col) => { if (v < lo || v > hi) throw new Error(I18n.t('csvErrorRange', { col, v })); };
+    range(b.capacityKwh, 1, 100000, 'capacity_kwh');
+    range(b.powerKw, 1, 10000, 'power_kw');
+    range(b.rte, 0.5, 0.99, 'rte_percent');
+    range(b.dod, 0.1, 1.0, 'dod_percent');
+    applyCustomBess(b);
+    updateAll();
+  } catch (err) {
+    if (statusEl) statusEl.textContent = I18n.t('bessError', { msg: err.message });
+  }
 }
 
 // True when a simulation result exists and the current inputs still match
@@ -554,7 +996,7 @@ function updateAll() {
   document.getElementById('legend-wind').textContent = I18n.t('windLegend', { deg: AppState.windDirection });
   // Icon rail tooltips follow the active language
   document.querySelectorAll('.rail-btn[data-section]').forEach((btn) => {
-    const key = { 'section-01': 'railRoof', 'section-02': 'railPv', 'section-03': 'railBess' }[btn.dataset.section];
+    const key = { 'section-01': 'railRoof', 'section-02': 'railPv', 'section-03': 'railBess', 'section-04': 'railLoad', 'section-05': 'railWeather' }[btn.dataset.section];
     if (key) {
       btn.title = I18n.t(key);
       btn.setAttribute('aria-label', I18n.t(key));
@@ -611,6 +1053,10 @@ function updateAll() {
 
   // Detailed PySAM section (results + stale check)
   renderPysamUI();
+
+  // Data input panels (load source + weather source status)
+  renderLoadUI();
+  renderWeatherUI();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -638,31 +1084,133 @@ document.addEventListener('DOMContentLoaded', () => {
   bindInput('wall-height', 'wallHeight', parseFloat);
   bindInput('roof-setback', 'roofSetback', parseFloat);
   bindInput('panel-orientation', 'panelOrientation', String);
-  bindInput('panel-wp', 'panelWp', parseInt);
   bindInput('row-gap', 'rowGap', parseFloat);
   bindInput('rack-tilt', 'rackTilt', parseFloat);
-  bindInput('bess-chemistry', 'bessChemistry', String);
-  bindInput('site-location', 'siteLocation', String);
   bindInput('bess-kwh', 'bessKwh', parseInt);
   bindInput('bess-kw', 'bessKw', parseInt);
   bindInput('sun-hour', 'sunHour', parseFloat);
   bindInput('wind-direction', 'windDirection', parseFloat);
 
-  // Icon Rail: section shortcuts + panel collapse (Aurora-style sidebar)
-  const layoutRow = document.getElementById('layout-row');
-  document.querySelectorAll('.rail-btn[data-section]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.rail-btn[data-section]').forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      layoutRow.classList.remove('sidebar-collapsed');
-      const section = document.getElementById(btn.dataset.section);
-      if (section) requestAnimationFrame(() => section.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-      window.dispatchEvent(new Event('resize'));
-    });
+  // Module Wp select: picking a standard module clears the custom upload.
+  document.getElementById('panel-wp').addEventListener('change', (e) => {
+    if (e.target.value === 'custom') {
+      if (AppState.customModule) AppState.panelWp = AppState.customModule.wp;
+    } else {
+      clearCustomModule(false);
+      AppState.panelWp = parseInt(e.target.value, 10);
+    }
+    updateAll();
   });
+
+  // BESS chemistry select: picking a standard chemistry clears the custom upload.
+  document.getElementById('bess-chemistry').addEventListener('change', (e) => {
+    if (e.target.value === 'CUSTOM') {
+      if (customBess) AppState.bessChemistry = 'CUSTOM';
+    } else {
+      clearCustomBess(false);
+      AppState.bessChemistry = e.target.value;
+    }
+    updateAll();
+  });
+
+  // Location select: picking a TMYx location drops an uploaded EPW.
+  document.getElementById('site-location').addEventListener('change', (e) => {
+    const v = e.target.value;
+    if (v !== 'CUSTOM_EPW' && weatherInput.mode === 'epw') {
+      weatherInput = { mode: 'tmy', prevLocation: null, epw: null, error: null };
+      delete EnergyModel.locations.CUSTOM_EPW;
+      const opt = e.target.querySelector('option[value="CUSTOM_EPW"]');
+      if (opt) opt.remove();
+      document.getElementById('epw-clear').classList.add('hidden');
+      const infoEl = document.getElementById('epw-info');
+      if (infoEl) { infoEl.classList.add('hidden'); infoEl.textContent = ''; }
+    }
+    AppState.siteLocation = v;
+    updateAll();
+  });
+
+  // Icon Rail: switch sidebar panels (desktop tabs) + panel collapse.
+  // On mobile there is no rail and all sections stay stacked (the
+  // panel-hidden class only hides at lg, see style.css).
+  const layoutRow = document.getElementById('layout-row');
+  const setActivePanel = (id) => {
+    document.querySelectorAll('.rail-btn[data-section]').forEach((b) => b.classList.toggle('active', b.dataset.section === id));
+    ['section-01', 'section-02', 'section-03', 'section-04', 'section-05'].forEach((s) => {
+      const el = document.getElementById(s);
+      if (el) el.classList.toggle('panel-hidden', s !== id);
+    });
+    layoutRow.classList.remove('sidebar-collapsed');
+    window.dispatchEvent(new Event('resize'));
+  };
+  document.querySelectorAll('.rail-btn[data-section]').forEach((btn) => {
+    btn.addEventListener('click', () => setActivePanel(btn.dataset.section));
+  });
+  setActivePanel('section-01');
   document.getElementById('rail-collapse-btn').addEventListener('click', () => {
     layoutRow.classList.toggle('sidebar-collapsed');
     window.dispatchEvent(new Event('resize'));
+  });
+
+  // Load profile inputs (section 04).
+  document.getElementById('load-mode').addEventListener('change', (e) => {
+    loadInput.mode = e.target.value;
+    loadInput.error = null;
+    if (loadInput.mode === 'manual' && loadInput.annualKwh == null) {
+      const derived = lastMetrics ? EnergyModel.annualLoadKwh(AppState, lastMetrics) : 0;
+      loadInput.annualKwh = Math.round(derived);
+      document.getElementById('load-annual').value = loadInput.annualKwh;
+    }
+    updateAll();
+  });
+  document.getElementById('load-annual').addEventListener('input', (e) => {
+    const v = parseFloat(e.target.value);
+    loadInput.annualKwh = isNaN(v) || v <= 0 ? null : v;
+    updateAll();
+  });
+  document.getElementById('load-shape').addEventListener('change', (e) => {
+    loadInput.shape = e.target.value;
+    updateAll();
+  });
+  document.getElementById('load-file').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) onLoadFile(f);
+    e.target.value = '';
+  });
+  document.getElementById('load-template').addEventListener('click', downloadLoadTemplate);
+  document.getElementById('load-clear').addEventListener('click', () => {
+    loadInput.csv = null;
+    loadInput.error = null;
+    updateAll();
+  });
+
+  // EPW upload (section 05).
+  document.getElementById('epw-file').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) onEpwFile(f);
+    e.target.value = '';
+  });
+  document.getElementById('epw-clear').addEventListener('click', clearEpw);
+
+  // PV module + BESS uploads (sections 02 and 03).
+  document.getElementById('module-file').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) onModuleFile(f);
+    e.target.value = '';
+  });
+  document.getElementById('module-template').addEventListener('click', downloadModuleTemplate);
+  document.getElementById('module-clear').addEventListener('click', () => {
+    clearCustomModule(true);
+    updateAll();
+  });
+  document.getElementById('bess-file').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) onBessFile(f);
+    e.target.value = '';
+  });
+  document.getElementById('bess-template').addEventListener('click', downloadBessTemplate);
+  document.getElementById('bess-clear').addEventListener('click', () => {
+    clearCustomBess(true);
+    updateAll();
   });
 
   // Clear Obstacles

@@ -244,8 +244,12 @@ const Scene3D = {
     let activePanelsCount = 0;
     let rafterLength = halfW;
 
-    const pW = state.panelOrientation === 'portrait' ? 1.134 : 2.278;
-    const pH = state.panelOrientation === 'portrait' ? 2.278 : 1.134;
+    // Custom uploaded module overrides the standard 1.134 x 2.278 m panel:
+    // length is the long side, width the short side; portrait = width x length.
+    const modW = state.customModule ? state.customModule.width : 1.134;
+    const modL = state.customModule ? state.customModule.length : 2.278;
+    const pW = state.panelOrientation === 'portrait' ? modW : modL;
+    const pH = state.panelOrientation === 'portrait' ? modL : modW;
 
     if (state.roofType === 'gable-dual' || state.roofType === 'gable-single' || state.roofType === 'hip') {
       const ridgeH = Math.tan(tiltRad) * halfW;
