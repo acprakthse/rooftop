@@ -605,6 +605,8 @@ function downloadBessTemplate() {
 }
 
 function applyCustomModule(m) {
+  // Remember the Wp that was active, so clearing restores it.
+  m.prevWp = AppState.panelWp;
   AppState.customModule = m;
   const sel = document.getElementById('panel-wp');
   let opt = sel.querySelector('option[value="custom"]');
@@ -630,6 +632,7 @@ function applyCustomModule(m) {
 }
 
 function clearCustomModule(resetWp) {
+  const prevWp = AppState.customModule ? AppState.customModule.prevWp : null;
   AppState.customModule = null;
   const sel = document.getElementById('panel-wp');
   const opt = sel.querySelector('option[value="custom"]');
@@ -641,7 +644,12 @@ function clearCustomModule(resetWp) {
   if (lOpt) lOpt.textContent = 'Landscape (2.27m × 1.13m)';
   document.getElementById('module-clear').classList.add('hidden');
   document.getElementById('module-status').textContent = I18n.t('moduleStatusDefault');
-  if (resetWp) { sel.value = '610'; AppState.panelWp = 610; }
+  if (resetWp) {
+    // Restore the Wp that was active before the upload (default 610).
+    const wp = prevWp || 610;
+    sel.value = String(wp);
+    AppState.panelWp = wp;
+  }
 }
 
 async function onModuleFile(file) {
@@ -684,6 +692,9 @@ async function onModuleFile(file) {
 }
 
 function applyCustomBess(b) {
+  // Remember the sizing that was active, so clearing restores it.
+  b.prevKwh = AppState.bessKwh;
+  b.prevKw = AppState.bessKw;
   customBess = b;
   EnergyModel.chemistries.CUSTOM = { label: b.name, rte: b.rte, dod: b.dod };
   const sel = document.getElementById('bess-chemistry');
@@ -708,6 +719,10 @@ function applyCustomBess(b) {
 }
 
 function clearCustomBess(resetChem) {
+  // Restore the pre-upload sizing, but only if the sliders still hold the
+  // uploaded values (if the user moved them since, their choice stands).
+  const prev = customBess;
+  const sizingUntouched = prev && AppState.bessKwh === prev.capacityKwh && AppState.bessKw === prev.powerKw;
   customBess = null;
   delete EnergyModel.chemistries.CUSTOM;
   const sel = document.getElementById('bess-chemistry');
@@ -716,6 +731,12 @@ function clearCustomBess(resetChem) {
   document.getElementById('bess-clear').classList.add('hidden');
   document.getElementById('bess-status').textContent = I18n.t('bessStatusDefault');
   if (resetChem) { sel.value = 'LFP'; AppState.bessChemistry = 'LFP'; }
+  if (resetChem && sizingUntouched) {
+    AppState.bessKwh = prev.prevKwh;
+    AppState.bessKw = prev.prevKw;
+    document.getElementById('bess-kwh').value = Math.min(500, prev.prevKwh);
+    document.getElementById('bess-kw').value = Math.min(500, prev.prevKw);
+  }
 }
 
 async function onBessFile(file) {
@@ -837,7 +858,11 @@ function renderPysamUI() {
     imp: (r.annual_kwh.import / 1000).toFixed(1),
     exp: (r.annual_kwh.export / 1000).toFixed(1)
   });
+  // Load source comes from the result itself (not the current UI mode),
+  // so a stale result still names the profile it was computed with.
+  const loadIsCsv = (r.inputs.load_profile || '').indexOf('upload') >= 0;
   document.getElementById('pysam-load').textContent = I18n.t('pysamLoad', {
+    src: loadIsCsv ? I18n.t('loadSrcCsv') : I18n.t('loadSrcSynthetic'),
     v: (r.inputs.annual_load_kwh / 1000).toFixed(0)
   });
   document.getElementById('pysam-weather').textContent = I18n.t('pysamWeather', {
