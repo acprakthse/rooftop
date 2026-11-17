@@ -18,6 +18,7 @@ const AppState = {
   bessChemistry: 'LFP',
   siteLocation: 'jakarta',
   bessKwh: 120,
+  bessKw: 60,
   sunHour: 10.5,
   windDirection: 90,
   currency: 'IDR'
@@ -50,6 +51,15 @@ let shadingFingerprint = '';
 let shadingRunning = false;
 let lastMetrics = null;
 
+// ---- Detailed PySAM simulation state ----
+// The PySAM result belongs to one exact request payload (slopes,
+// shading, BESS, load, location). Any input change marks it stale.
+const PYSAM_API_URL = 'https://rooftop-api-451921864170.asia-southeast2.run.app';
+let pysamResult = null;
+let pysamFingerprint = '';
+let pysamRunning = false;
+let pysamQuickMwh = null; // quick-estimate yield at run time, for comparison
+
 const MONTH_NAMES = {
   id: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
   en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -80,7 +90,7 @@ function renderShadingUI() {
   const runBtn = document.getElementById('run-shading');
   if (!statusEl || !resultsEl || !runBtn) return;
 
-  runBtn.disabled = shadingRunning;
+  runBtn.disabled = shadingRunning || pysamRunning;
   if (!shadingRunning) runBtn.textContent = I18n.t('shadingRun');
 
   if (shadingRunning) {
@@ -148,7 +158,7 @@ function renderShadingUI() {
   });
 }
 
-async function runShadingAnalysis() {
+async function runShadingAnalysis(onProgress) {
   if (shadingRunning) return;
   const statusEl = document.getElementById('shading-status');
   const runBtn = document.getElementById('run-shading');
@@ -161,6 +171,7 @@ async function runShadingAnalysis() {
     const result = await ShadingAnalyzer.analyze(AppState, Scene3D, (frac) => {
       if (statusEl) statusEl.textContent = I18n.t('shadingRunning', { v: Math.round(frac * 100) });
       if (runBtn) runBtn.textContent = I18n.t('shadingRunning', { v: Math.round(frac * 100) });
+      if (onProgress) onProgress(frac);
     });
     if (!result) {
       if (statusEl) statusEl.textContent = I18n.t('shadingNoModules');
@@ -177,6 +188,232 @@ async function runShadingAnalysis() {
     shadingRunning = false;
     updateAll(); // refresh KPIs with the new shading factor + render results
   }
+}
+
+// ---- Detailed PySAM simulation (per-slope, via Cloud Run) ----
+
+// Azimuth each slope faces in the scene's default pose (orientation
+// 180), PVWatts convention: 0 = North, 90 = East, 180 = South,
+// 270 = West. The building rotation (rootGroup.rotation.y =
+// 180 - orientation) shifts every slope by (orientation - 180), so
+// the true azimuth is the default plus that shift, mod 360.
+const SLOPE_DEFAULT_AZIMUTH = { S: 180, N: 0, E: 90, W: 270, SHED: 180, FLAT: 180 };
+const SLOPE_ORDER = ['S', 'N', 'E', 'W', 'SHED', 'FLAT'];
+
+function slopePanelCounts() {
+  // Same collection rule as ShadingAnalyzer._collectModules: holder
+  // groups are active modules; obstacle cylinders are meshes, not groups.
+  const counts = {};
+  for (const holder of Scene3D.panelMeshes) {
+    if (!holder.isGroup) continue;
+    const side = ((holder.userData && holder.userData.slotKey) || '').split('-')[0];
+    if (!side) continue;
+    counts[side] = (counts[side] || 0) + 1;
+  }
+  return counts;
+}
+
+// Build the POST /simulate payload from the live 3D scene: one slope
+// entry per slope with active modules (kWp from the module count, tilt
+// and true azimuth from the roof geometry + building orientation, and
+// the raycast shading loss when measured, else 0).
+function buildPysamPayload() {
+  const counts = slopePanelCounts();
+  const slopes = [];
+  for (const side of SLOPE_ORDER) {
+    const n = counts[side] || 0;
+    if (n === 0) continue;
+    const tilt = side === 'FLAT' ? AppState.rackTilt : AppState.roofTilt;
+    const azimuth = (((SLOPE_DEFAULT_AZIMUTH[side] + AppState.orientation - 180) % 360) + 360) % 360;
+    const shading = shadingResult && shadingResult.perSlope[side]
+      ? shadingResult.perSlope[side].lossPercent
+      : 0;
+    slopes.push({
+      name: side,
+      pv_kwp: (n * AppState.panelWp) / 1000,
+      tilt_deg: tilt,
+      azimuth_deg: azimuth,
+      shading_percent: Math.round(shading * 100) / 100
+    });
+  }
+  const annualLoadKwh = lastMetrics
+    ? EnergyModel.annualLoadKwh(AppState, lastMetrics)
+    : 0;
+  return {
+    location: AppState.siteLocation,
+    slopes,
+    bess_power_kw: AppState.bessKw,
+    bess_capacity_kwh: AppState.bessKwh,
+    annual_load_kwh: Math.round(annualLoadKwh),
+    include_economics: true
+  };
+}
+
+async function runPysamSimulation() {
+  if (pysamRunning) return;
+  const statusEl = document.getElementById('pysam-status');
+  const runBtn = document.getElementById('run-pysam');
+  pysamRunning = true;
+  renderPysamUI();
+  updateAll(); // fresh scene + metrics before building the payload
+
+  try {
+    if (AppState.bessKwh <= 0) {
+      if (statusEl) statusEl.textContent = I18n.t('pysamNoBess');
+      return;
+    }
+    const counts = slopePanelCounts();
+    const totalModules = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (totalModules === 0) {
+      if (statusEl) statusEl.textContent = I18n.t('pysamNoModules');
+      return;
+    }
+
+    // Shading feeds the per-slope losses: compute it first when missing
+    // (updateAll already cleared a stale result).
+    if (!shadingResult) {
+      if (statusEl) statusEl.textContent = I18n.t('pysamRunningShading', { v: 0 });
+      await runShadingAnalysis((frac) => {
+        if (statusEl) statusEl.textContent = I18n.t('pysamRunningShading', { v: Math.round(frac * 100) });
+      });
+      if (!shadingResult) {
+        if (statusEl) statusEl.textContent = I18n.t('shadingNoModules');
+        return;
+      }
+    }
+
+    const payload = buildPysamPayload();
+    if (statusEl) statusEl.textContent = I18n.t('pysamRunningApi');
+    if (runBtn) runBtn.textContent = I18n.t('pysamRunningApi');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 180000);
+    let response;
+    try {
+      response = await fetch(PYSAM_API_URL + '/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error('HTTP ' + response.status + ' ' + text.slice(0, 120));
+    }
+    pysamResult = await response.json();
+    pysamFingerprint = JSON.stringify(payload);
+    pysamQuickMwh = lastMetrics ? lastMetrics.annualMwh : null;
+  } catch (err) {
+    if (statusEl) statusEl.textContent = I18n.t('pysamError', { msg: err.message || String(err) });
+  } finally {
+    pysamRunning = false;
+    updateAll(); // refresh everything, including the PySAM results
+  }
+}
+
+function fmtIdrJuta(rp) {
+  const juta = rp / 1e6;
+  const v = Math.abs(juta) >= 100 ? juta.toFixed(0) : juta.toFixed(1);
+  return 'Rp ' + v.replace('.', ',') + ' jt';
+}
+
+function renderPysamUI() {
+  const statusEl = document.getElementById('pysam-status');
+  const resultsEl = document.getElementById('pysam-results');
+  const runBtn = document.getElementById('run-pysam');
+  if (!statusEl || !resultsEl || !runBtn) return;
+
+  runBtn.disabled = pysamRunning || shadingRunning;
+  if (!pysamRunning) runBtn.textContent = I18n.t('pysamRun');
+
+  if (pysamRunning) return; // status line is driven by the runner
+  if (!pysamResult) {
+    statusEl.textContent = I18n.t('pysamNotRun');
+    resultsEl.classList.add('hidden');
+    return;
+  }
+
+  const stale = JSON.stringify(buildPysamPayload()) !== pysamFingerprint;
+  statusEl.textContent = stale ? I18n.t('pysamStale') : '';
+  resultsEl.classList.remove('hidden');
+
+  const r = pysamResult;
+  document.getElementById('pysam-pv').textContent = (r.annual_kwh.pv / 1000).toFixed(1);
+  document.getElementById('pysam-sc').textContent = r.annual_kwh.self_consumption_percent.toFixed(1);
+  document.getElementById('pysam-ss').textContent = r.annual_kwh.self_sufficiency_percent.toFixed(1);
+  document.getElementById('pysam-import-export').textContent = I18n.t('pysamImportExport', {
+    imp: (r.annual_kwh.import / 1000).toFixed(1),
+    exp: (r.annual_kwh.export / 1000).toFixed(1)
+  });
+  document.getElementById('pysam-load').textContent = I18n.t('pysamLoad', {
+    v: (r.inputs.annual_load_kwh / 1000).toFixed(0)
+  });
+  document.getElementById('pysam-weather').textContent = I18n.t('pysamWeather', {
+    v: r.inputs.location_name + ' · ' + r.inputs.weather_source
+  });
+  document.getElementById('pysam-quick').textContent = pysamQuickMwh != null
+    ? I18n.t('pysamQuickCompare', { v: pysamQuickMwh.toFixed(1) })
+    : '';
+
+  const econ = r.economics && r.economics.summary;
+  document.getElementById('pysam-econ').textContent = econ
+    ? I18n.t('pysamEconLine', {
+      npv: fmtIdrJuta(econ.npv_rp),
+      irr: econ.irr_percent != null ? econ.irr_percent.toFixed(1) : '-',
+      pb: econ.payback_years != null ? econ.payback_years.toFixed(1) : '-',
+      lcoe: 'Rp ' + Math.round(econ.lcoe_nominal_rp_per_kwh).toLocaleString('id-ID') + '/kWh'
+    })
+    : '';
+
+  document.getElementById('pysam-battery').textContent = I18n.t('pysamBattery', {
+    rte: r.battery.roundtrip_efficiency_percent.toFixed(1),
+    smin: r.battery.soc_min_percent.toFixed(0),
+    smax: r.battery.soc_max_percent.toFixed(0),
+    thr: (r.battery.throughput_discharge_kwh / 1000).toFixed(1),
+    cyc: r.battery.equivalent_full_cycles.toFixed(1)
+  });
+
+  const tbody = document.getElementById('pysam-slopes');
+  tbody.innerHTML = '';
+  for (const s of r.slopes) {
+    const row = document.createElement('tr');
+    row.className = 'border-b border-slate-100 text-slate-700';
+    const cells = [
+      slopeLabel(s.name) + ' · ' + s.share_percent.toFixed(0) + '%',
+      s.pv_kwp.toFixed(1),
+      s.tilt_deg.toFixed(0) + '°',
+      s.azimuth_deg.toFixed(0) + '°',
+      s.shading_percent.toFixed(1) + '%',
+      (s.annual_kwh / 1000).toFixed(1) + ' MWh'
+    ];
+    cells.forEach((text, i) => {
+      const td = document.createElement('td');
+      td.className = 'py-1 pr-2 tabular-nums' + (i === 0 ? '' : ' text-right');
+      td.textContent = text;
+      row.appendChild(td);
+    });
+    tbody.appendChild(row);
+  }
+
+  const monthsEl = document.getElementById('pysam-months');
+  const labelsEl = document.getElementById('pysam-month-labels');
+  monthsEl.innerHTML = '';
+  labelsEl.innerHTML = '';
+  const names = MONTH_NAMES[I18n.lang] || MONTH_NAMES.en;
+  const maxM = Math.max.apply(null, r.monthly_kwh.pv.concat([1]));
+  r.monthly_kwh.pv.forEach((kwh, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'flex-1 rounded-t bg-[#D97706] min-h-[2px]';
+    bar.style.height = Math.max(2, (kwh / maxM) * 100) + '%';
+    bar.title = names[i] + ': ' + (kwh / 1000).toFixed(2) + ' MWh';
+    monthsEl.appendChild(bar);
+    const lab = document.createElement('div');
+    lab.className = 'flex-1 text-center text-[10px] font-sans text-slate-400';
+    lab.textContent = names[i];
+    labelsEl.appendChild(lab);
+  });
 }
 
 function updateAll() {
@@ -210,6 +447,7 @@ function updateAll() {
   document.getElementById('val-row-gap').textContent = `${AppState.rowGap.toFixed(2)} m`;
   document.getElementById('val-rack-tilt').textContent = `${AppState.rackTilt}°`;
   document.getElementById('val-bess-kwh').textContent = `${AppState.bessKwh} kWh`;
+  document.getElementById('val-bess-kw').textContent = `${AppState.bessKw} kW`;
 
   const hr = Math.floor(AppState.sunHour);
   const min = Math.round((AppState.sunHour - hr) * 60);
@@ -245,6 +483,9 @@ function updateAll() {
 
   // Shading section (status + results, re-translated on language change)
   renderShadingUI();
+
+  // Detailed PySAM section (results + stale check)
+  renderPysamUI();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -278,6 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindInput('bess-chemistry', 'bessChemistry', String);
   bindInput('site-location', 'siteLocation', String);
   bindInput('bess-kwh', 'bessKwh', parseInt);
+  bindInput('bess-kw', 'bessKw', parseInt);
   bindInput('sun-hour', 'sunHour', parseFloat);
   bindInput('wind-direction', 'windDirection', parseFloat);
 
@@ -327,6 +569,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Roof-shape shading analysis (3D raycast)
   document.getElementById('run-shading').addEventListener('click', () => {
     runShadingAnalysis();
+  });
+
+  // Detailed PySAM simulation (per-slope, via Cloud Run)
+  document.getElementById('run-pysam').addEventListener('click', () => {
+    runPysamSimulation();
   });
 
   window.addEventListener('resize', () => updateAll());

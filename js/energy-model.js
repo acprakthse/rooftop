@@ -9,13 +9,14 @@
 
 const EnergyModel = {
   locations: {
-    // diffuseFraction: assumed annual diffuse share of global irradiation
-    // (typical values, not measured, replace with TMY-derived fractions
-    // when weather data is available). Used only to combine the raycast
+    // diffuseFraction: annual diffuse share of global irradiation, derived
+    // from the TMYx weather file per location (DHI/GHI), replacing the
+    // earlier typical-value assumptions. Used only to combine the raycast
     // beam and diffuse shading losses into one number.
-    jakarta: { name: "Jakarta, ID", psh: 4.6, lat: -6.2, gridEf: 0.78, tariffIdr: 1444.7, tariffEur: 0.088, diffuseFraction: 0.45 },
-    riau: { name: "Riau Islands", psh: 4.9, lat: 1.0, gridEf: 0.82, tariffIdr: 1650.0, tariffEur: 0.101, diffuseFraction: 0.45 },
-    oskarshamn: { name: "Oskarshamn, SE", psh: 3.3, lat: 57.26, gridEf: 0.045, tariffIdr: 2950.0, tariffEur: 0.180, diffuseFraction: 0.55 }
+    jakarta: { name: "Jakarta, ID", psh: 4.6, lat: -6.2, gridEf: 0.78, tariffIdr: 1444.7, tariffEur: 0.088, diffuseFraction: 0.31 },
+    riau: { name: "Riau Islands", psh: 4.9, lat: 1.0, gridEf: 0.82, tariffIdr: 1650.0, tariffEur: 0.101, diffuseFraction: 0.37 },
+    oskarshamn: { name: "Oskarshamn, SE", psh: 3.3, lat: 57.26, gridEf: 0.045, tariffIdr: 2950.0, tariffEur: 0.180, diffuseFraction: 0.42 },
+    bali: { name: "Denpasar, Bali", psh: 5.0, lat: -8.75, gridEf: 0.78, tariffIdr: 1444.7, tariffEur: 0.088, diffuseFraction: 0.28 }
   },
 
   chemistries: {
@@ -77,6 +78,22 @@ const EnergyModel = {
       co2Tonnes,
       chem
     };
+  },
+
+  // Annual load (kWh/yr) implied by the same synthetic 24h load shape
+  // the dispatch chart draws: base load scales with installed kWp, with
+  // morning and evening peaks. Sent to the PySAM API as annual_load_kwh;
+  // the API builds its own synthetic 8760h commercial profile from this
+  // annual total. Clearly synthetic, not a measured load.
+  annualLoadKwh(state, metrics) {
+    const baseLoad = Math.max(15, metrics.kwp * 0.32);
+    let dailyKwh = 0;
+    for (let hr = 0; hr < 24; hr++) {
+      const morningPeak = Math.exp(-0.5 * Math.pow((hr - 9) / 2.2, 2)) * 0.45;
+      const eveningPeak = Math.exp(-0.5 * Math.pow((hr - 19) / 2.0, 2)) * 0.65;
+      dailyKwh += baseLoad * (0.6 + morningPeak + eveningPeak);
+    }
+    return dailyKwh * 365;
   },
 
   drawDispatchChart(canvas, state, metrics) {
