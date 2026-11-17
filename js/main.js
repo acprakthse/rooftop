@@ -70,7 +70,7 @@ const dispatchChart = { simDay: null, hidden: {}, hoverHour: null, geom: null };
 // authConfigured: false selama FIREBASE_CONFIG masih placeholder (login
 // belum disiapkan di console) -> simulasi tetap terbuka seperti dulu.
 // Bila Firebase terisi: simulasi detail mewajibkan login; backend
-// menegakkan kuota (gratis 5 simulasi per akun; field plan + quota
+// menegakkan kuota (gratis 3 simulasi per akun; field plan + quota
 // di Firestore dipersiapkan untuk fitur berbayar).
 let authUser = null;      // firebase.User | null
 let authIdToken = null;   // string | null
