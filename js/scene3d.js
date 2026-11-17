@@ -260,9 +260,14 @@ const Scene3D = {
 
       // Create South & North Slope Planes (trapezoids for hip, rectangles
       // for gable the same code, ridgeLength == L makes it rectangular).
-      // Local frame: +X along the building length, +Z down-slope to the
-      // eave, +Y the slope normal. Eave edge (local z = +rafter/2) is
-      // width L; ridge edge (local z = -rafter/2) is width ridgeLength.
+      // Local frame: +X along the building length, +Y the slope normal,
+      // +Z down-slope to the eave FOR THE SOUTH SLOPE ONLY. The north
+      // slope group is rotated -tilt, so its local +Z runs UP to the
+      // ridge and its eave is at local -Z. The wide edge (full length L)
+      // belongs at the eave and the narrow edge (ridgeLength) at the
+      // ridge; using the same local z for both sides turns the north
+      // trapezoid upside down (wide at the ridge, narrow at the eave).
+      // For gable roofs this is invisible (ridgeLength == L).
       [-1, 1].forEach((sideSign) => {
         const slopeGroup = new THREE.Group();
         slopeGroup.position.set(0, H + ridgeH / 2, (sideSign * halfW) / 2);
@@ -271,9 +276,11 @@ const Scene3D = {
         const slabGeo = new THREE.BufferGeometry();
         const hw = L / 2;
         const rl = rafterLength;
+        const eaveZ = sideSign === 1 ? rl / 2 : -rl / 2;
+        const ridgeZ = -eaveZ;
         const verts = new Float32Array([
-          -hw, 0, rl / 2, hw, 0, rl / 2, ridgeHalf, 0, -rl / 2,
-          -hw, 0, rl / 2, ridgeHalf, 0, -rl / 2, -ridgeHalf, 0, -rl / 2
+          -hw, 0, eaveZ, hw, 0, eaveZ, ridgeHalf, 0, ridgeZ,
+          -hw, 0, eaveZ, ridgeHalf, 0, ridgeZ, -ridgeHalf, 0, ridgeZ
         ]);
         slabGeo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
         slabGeo.computeVertexNormals();
@@ -452,9 +459,13 @@ const Scene3D = {
         // rafter, so a row's geometric position is what matters).
         // The binding edge is the panel's narrow side, the ridge-side
         // edge for N/S trapezoids, the apex-side edge for E/W triangles.
+        // NOTE: the north slope group is rotated -tilt, so its local +Z
+        // runs UP to the ridge (opposite of the south slope); the
+        // narrow end is at local +Z there, hence the mirrored z.
         if (taperMode === 'hipNS') {
           const ridgeHalf = Math.max(0, (state.roofLength - state.roofWidth) / 2);
-          const fracNarrow = (posZ - pH / 2 + availSlopeWidth / 2) / Math.max(0.001, availSlopeWidth);
+          const zEff = sideId === 'N' ? -posZ : posZ;
+          const fracNarrow = (zEff - pH / 2 + availSlopeWidth / 2) / Math.max(0.001, availSlopeWidth);
           const halfAllowed = ridgeHalf + Math.max(0, Math.min(1, fracNarrow)) * (availLen / 2 - ridgeHalf);
           if (Math.abs(posX) + pW / 2 > halfAllowed + 0.01) continue;
         }

@@ -105,15 +105,16 @@ const ShadingAnalyzer = {
       totalEnergy += mEnergy * days;
       totalShaded += mShaded * days;
 
-      if (onProgress) onProgress(month / 12, month);
+      if (onProgress) onProgress((month / 12) * 0.9, month);
       await new Promise((r) => setTimeout(r, 0)); // let the UI breathe
     }
 
     // Diffuse (sky-view) pass: one-time hemisphere raycast, then combine
     // with the beam result using the location's assumed diffuse fraction.
     // Diffuse loss is time-independent, so monthly combined values reuse
-    // the annual diffuse loss.
-    const diffuse = this._diffuseLoss(modules, occluders, raycaster);
+    // the annual diffuse loss. The pass is chunked (progress 90-100%)
+    // so the UI never freezes on slower devices.
+    const diffuse = await this._diffuseLoss(modules, occluders, raycaster, onProgress);
     const beamAnnual = totalEnergy > 0 ? (totalShaded / totalEnergy) * 100 : 0;
     const combinedAnnual = beamAnnual * (1 - fDiff) + diffuse.annual * fDiff;
     const monthlyCombined = monthly.map((b) => b * (1 - fDiff) + diffuse.annual * fDiff);
@@ -151,13 +152,15 @@ const ShadingAnalyzer = {
   // over the hemisphere above the module plane); each carries weight
   // cos(incidence). Directions below the horizon see ground, not sky,
   // and are excluded from both sums. Returns { annual, perSlope } in %.
-  _diffuseLoss(modules, occluders, raycaster) {
+  // Async + chunked so the UI stays responsive on slower devices.
+  async _diffuseLoss(modules, occluders, raycaster, onProgress) {
     const dirs = this._fibonacciHemisphere(200);
     const perSlope = {};
     let totalFree = 0;
     let totalBlocked = 0;
 
-    for (const mod of modules) {
+    for (let i = 0; i < modules.length; i++) {
+      const mod = modules[i];
       // Orthonormal basis around the module normal.
       const n = mod.normal;
       const ref = Math.abs(n.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
@@ -181,7 +184,12 @@ const ShadingAnalyzer = {
       const s = perSlope[mod.side] || (perSlope[mod.side] = { free: 0, blocked: 0 });
       s.free += sFree;
       s.blocked += sBlocked;
+      if (i % 16 === 15) {
+        if (onProgress) onProgress(0.9 + 0.1 * ((i + 1) / modules.length));
+        await new Promise((r) => setTimeout(r, 0)); // let the UI breathe
+      }
     }
+    if (onProgress) onProgress(1);
 
     const perSlopeOut = {};
     for (const side of Object.keys(perSlope)) {
