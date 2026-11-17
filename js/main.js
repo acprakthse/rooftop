@@ -61,6 +61,12 @@ let pysamFingerprint = '';
 let pysamRunning = false;
 let pysamQuickMwh = null; // quick-estimate yield at run time, for comparison
 
+// ---- Interactive dispatch chart state ----
+// simDay: the typical_day being drawn (null = empty state). hidden:
+// series the user toggled off via the legend. hoverHour: hour under
+// the mouse (crosshair + tooltip). geom: plot geometry from the last draw.
+const dispatchChart = { simDay: null, hidden: {}, hoverHour: null, geom: null };
+
 // ---- User-supplied input data (uploads + manual load) ----
 // Load profile: auto (annual load derived from kWp, commercial shape),
 // manual (annual kWh + shape preset), or csv (uploaded 8760 hourly kW).
@@ -783,29 +789,125 @@ function pysamIsFresh() {
   return JSON.stringify(buildPysamPayload()) === pysamFingerprint;
 }
 
-// Section 04 chart: simulation typical-day when a fresh result exists,
-// otherwise the quick synthetic profiles. The title follows the source.
+// Dispatch chart: drawn only from a fresh simulation result. Before any
+// simulation (or when inputs changed and the result is stale), the
+// section shows an empty state instead of a made-up curve.
 function renderDispatchChart(metrics) {
   const titleEl = document.getElementById('sec04-title');
   const descEl = document.getElementById('sec04-desc');
+  const legendEl = document.getElementById('dispatch-legend');
   const gridLegend = document.getElementById('legend-grid-import');
   const battLegend = document.getElementById('legend-battery');
   const canvas = document.getElementById('dispatch-chart');
+  const emptyEl = document.getElementById('dispatch-empty');
   const sim = pysamIsFresh() ? pysamResult : null;
   if (sim && sim.typical_day) {
     const mode = sim.dispatch && sim.dispatch.mode === 'pysam' ? 'PySAM' : 'MILP';
     if (titleEl) titleEl.textContent = I18n.t('sec04Sim', { mode });
     if (descEl) descEl.textContent = I18n.t('sec04SimDesc');
+    if (legendEl) legendEl.classList.remove('hidden');
     if (gridLegend) gridLegend.classList.remove('hidden');
     if (battLegend) battLegend.classList.remove('hidden');
-    EnergyModel.drawDispatchChart(canvas, AppState, metrics, sim.typical_day);
+    if (canvas) canvas.classList.remove('hidden');
+    if (emptyEl) emptyEl.classList.add('hidden');
+    dispatchChart.simDay = sim.typical_day;
+    dispatchChart.hoverHour = null;
+    hideDispatchTooltip();
+    dispatchChartRedraw();
   } else {
     if (titleEl) titleEl.textContent = I18n.t('sec04');
     if (descEl) descEl.textContent = I18n.t('sec04Desc');
-    if (gridLegend) gridLegend.classList.add('hidden');
-    if (battLegend) battLegend.classList.add('hidden');
-    EnergyModel.drawDispatchChart(canvas, AppState, metrics, null);
+    if (legendEl) legendEl.classList.add('hidden');
+    if (canvas) canvas.classList.add('hidden');
+    if (emptyEl) emptyEl.classList.remove('hidden');
+    dispatchChart.simDay = null;
+    dispatchChart.hoverHour = null;
+    hideDispatchTooltip();
   }
+}
+
+function dispatchChartRedraw() {
+  if (!dispatchChart.simDay) return;
+  const canvas = document.getElementById('dispatch-chart');
+  dispatchChart.geom = EnergyModel.drawDispatchChart(canvas, dispatchChart.simDay, {
+    hidden: dispatchChart.hidden,
+    hoverHour: dispatchChart.hoverHour
+  });
+}
+
+function hideDispatchTooltip() {
+  const tip = document.getElementById('dispatch-tooltip');
+  if (tip) tip.classList.add('hidden');
+}
+
+// Tooltip for the hovered hour: one row per visible series, with the
+// same colours as the legend. Positioned near the cursor, clamped
+// inside the chart container.
+function showDispatchTooltip(hour, clientX) {
+  const tip = document.getElementById('dispatch-tooltip');
+  const canvas = document.getElementById('dispatch-chart');
+  const d = dispatchChart.simDay;
+  if (!tip || !canvas || !d) return;
+  const h = dispatchChart.hidden;
+  const row = (color, label, value) => '<div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full inline-block" style="background:' + color + '"></span><span>' + label + ': <b>' + value + '</b></span></div>';
+  const rows = [];
+  if (!h.pv) rows.push(row('#D97706', I18n.t('legendPv'), d.pv_kw[hour].toFixed(1) + ' kW'));
+  if (!h.load) rows.push(row('#64748b', I18n.t('legendLoad'), d.load_kw[hour].toFixed(1) + ' kW'));
+  if (!h.soc) rows.push(row('#12579B', I18n.t('legendSoc'), d.soc_percent[hour].toFixed(0) + '%'));
+  if (d.grid_import_kw && !h.grid) rows.push(row('#BB1326', I18n.t('legendGridImport'), d.grid_import_kw[hour].toFixed(1) + ' kW'));
+  if (d.battery_kw && !h.batt) rows.push(row('#16A34A', I18n.t('legendBattery'), d.battery_kw[hour].toFixed(1) + ' kW'));
+  tip.innerHTML = '<div class="font-semibold mb-1">' + String(hour).padStart(2, '0') + ':00</div>' + rows.join('');
+  tip.classList.remove('hidden');
+  const wrapRect = canvas.parentElement.getBoundingClientRect();
+  let left = clientX - wrapRect.left + 12;
+  if (left + tip.offsetWidth > wrapRect.width - 4) left = clientX - wrapRect.left - tip.offsetWidth - 12;
+  tip.style.left = Math.max(4, left) + 'px';
+  tip.style.top = '8px';
+}
+
+function initDispatchChart() {
+  const canvas = document.getElementById('dispatch-chart');
+  if (!canvas) return;
+  canvas.addEventListener('mousemove', (e) => {
+    if (!dispatchChart.simDay || !dispatchChart.geom) return;
+    const rect = canvas.getBoundingClientRect();
+    const g = dispatchChart.geom;
+    const hour = Math.round(((e.clientX - rect.left - g.padL) / g.plotW) * 23);
+    if (hour < 0 || hour > 23) {
+      dispatchChart.hoverHour = null;
+      dispatchChartRedraw();
+      hideDispatchTooltip();
+      return;
+    }
+    if (dispatchChart.hoverHour !== hour) {
+      dispatchChart.hoverHour = hour;
+      dispatchChartRedraw();
+    }
+    showDispatchTooltip(hour, e.clientX);
+  });
+  canvas.addEventListener('mouseleave', () => {
+    dispatchChart.hoverHour = null;
+    dispatchChartRedraw();
+    hideDispatchTooltip();
+  });
+
+  // Legend click toggles a series on/off (dimmed legend = hidden).
+  document.querySelectorAll('#dispatch-legend .legend-toggle').forEach((el) => {
+    el.addEventListener('click', () => {
+      const s = el.getAttribute('data-series');
+      dispatchChart.hidden[s] = !dispatchChart.hidden[s];
+      el.classList.toggle('opacity-40', !!dispatchChart.hidden[s]);
+      dispatchChartRedraw();
+      hideDispatchTooltip();
+    });
+  });
+
+  // Empty-state button scrolls up to the simulation run button.
+  const emptyRunBtn = document.getElementById('dispatch-empty-run');
+  if (emptyRunBtn) emptyRunBtn.addEventListener('click', () => {
+    const runBtn = document.getElementById('run-pysam');
+    if (runBtn) { runBtn.scrollIntoView({ behavior: 'smooth', block: 'center' }); runBtn.focus(); }
+  });
 }
 
 function renderPysamUI() {
@@ -1276,6 +1378,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (statusEl) statusEl.textContent = I18n.t('pysamRunningShading', { v: Math.round(frac * 100) });
     });
   });
+
+  // Interactive dispatch chart (hover tooltip + legend toggles + empty state)
+  initDispatchChart();
 
   window.addEventListener('resize', () => updateAll());
   updateAll();

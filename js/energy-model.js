@@ -97,14 +97,17 @@ const EnergyModel = {
   },
 
   // 24h dispatch chart. Without simDay it draws the quick synthetic
-  // profiles (Gaussian PV bell, synthetic load, rule-based SoC). With
-  // simDay (the API's typical_day: 24 hourly averages from the detailed
-  // simulation) it draws the simulation results instead, including grid
-  // import and battery power (+ discharge / - charge). The battery line
-  // can go below zero, so the kW axis extends to the lowest battery value
-  // and the PV area fills down to the zero line.
-  drawDispatchChart(canvas, state, metrics, simDay) {
-    if (!canvas) return;
+  // Draws the 24-hour dispatch chart from a detailed simulation's
+  // typical_day (24 hourly averages): PV, load, grid import, battery
+  // power (+ discharge / - charge), and BESS SoC. The battery line can
+  // go below zero, so the kW axis extends to the lowest battery value
+  // and the PV area fills down to the zero line. There is no synthetic
+  // fallback here: before a simulation the section shows an empty state
+  // instead of a made-up curve.
+  // opts: { hidden: {pv, load, soc, grid, batt}, hoverHour: 0-23 | null }
+  // Returns the plot geometry so the caller can map mouse position to an hour.
+  drawDispatchChart(canvas, simDay, opts) {
+    if (!canvas) return null;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
@@ -119,58 +122,17 @@ const EnergyModel = {
     const padL = 36, padR = 16, padT = 12, padB = 22;
     const plotW = w - padL - padR;
     const plotH = h - padT - padB;
+    const geom = { padL, padR, padT, padB, plotW, plotH, width: w, height: h };
 
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-    let pvProfile, loadProfile, socProfile, gridProfile, battProfile;
+    const o = opts || {};
+    const hidden = o.hidden || {};
+    const hoverHour = (typeof o.hoverHour === 'number') ? o.hoverHour : null;
 
-    if (simDay && simDay.pv_kw && simDay.pv_kw.length === 24) {
-      // Detailed simulation results (typical day, hourly averages).
-      pvProfile = simDay.pv_kw;
-      loadProfile = simDay.load_kw;
-      socProfile = simDay.soc_percent;
-      gridProfile = simDay.grid_import_kw || null;
-      battProfile = simDay.battery_kw || null;
-    } else {
-      // Quick synthetic profiles (as before).
-      const peakPv = metrics.kwp * metrics.pr * (1 - (metrics.shadingLossPercent || 0) / 100);
-      const baseLoad = Math.max(15, metrics.kwp * 0.32);
-
-      pvProfile = hours.map(hr => {
-        if (hr < 6 || hr > 18) return 0;
-        const x = (hr - 12) / 3.2;
-        return Math.max(0, peakPv * Math.exp(-0.5 * x * x));
-      });
-
-      loadProfile = hours.map(hr => {
-        const morningPeak = Math.exp(-0.5 * Math.pow((hr - 9) / 2.2, 2)) * 0.45;
-        const eveningPeak = Math.exp(-0.5 * Math.pow((hr - 19) / 2.0, 2)) * 0.65;
-        return baseLoad * (0.6 + morningPeak + eveningPeak);
-      });
-
-      // Simulate BESS SoC (%). Usable capacity and SoC limits come from the
-      // selected chemistry's DoD; round-trip efficiency applies on both legs:
-      // charging stores net * RTE, discharging must draw net / RTE from the
-      // battery to deliver net to the load. (Replaces the old unexplained 0.65.)
-      let soc = 35;
-      const bessCap = Math.max(1, state.bessKwh);
-      const usableCap = bessCap * metrics.chem.dod;
-      const socMin = (1 - metrics.chem.dod) * 100;
-      const socMax = 100;
-      socProfile = hours.map((hr, i) => {
-        const net = pvProfile[i] - loadProfile[i];
-        if (state.bessKwh > 0) {
-          const delta = net >= 0
-            ? (net / usableCap) * 100 * metrics.chem.rte
-            : (net / usableCap) * 100 / metrics.chem.rte;
-          soc = Math.min(socMax, Math.max(socMin, soc + delta));
-        } else {
-          soc = 0;
-        }
-        return soc;
-      });
-      gridProfile = null;
-      battProfile = null;
-    }
+    const pvProfile = simDay.pv_kw;
+    const loadProfile = simDay.load_kw;
+    const socProfile = simDay.soc_percent;
+    const gridProfile = simDay.grid_import_kw || null;
+    const battProfile = simDay.battery_kw || null;
 
     const yMin = battProfile ? Math.min(0, Math.min.apply(null, battProfile)) : 0;
     const yMax = Math.max(
@@ -208,41 +170,47 @@ const EnergyModel = {
     }
 
     // 1. Draw PV Area (Yellow fill, amber line for contrast on white)
-    ctx.beginPath();
-    ctx.moveTo(toX(0), yZero);
-    pvProfile.forEach((v, i) => ctx.lineTo(toX(i), toYKw(v)));
-    ctx.lineTo(toX(23), yZero);
-    ctx.closePath();
-    const gradPv = ctx.createLinearGradient(0, padT, 0, padT + plotH);
-    gradPv.addColorStop(0, 'rgba(245, 226, 20, 0.42)');
-    gradPv.addColorStop(1, 'rgba(245, 226, 20, 0.02)');
-    ctx.fillStyle = gradPv;
-    ctx.fill();
+    if (!hidden.pv) {
+      ctx.beginPath();
+      ctx.moveTo(toX(0), yZero);
+      pvProfile.forEach((v, i) => ctx.lineTo(toX(i), toYKw(v)));
+      ctx.lineTo(toX(23), yZero);
+      ctx.closePath();
+      const gradPv = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+      gradPv.addColorStop(0, 'rgba(245, 226, 20, 0.42)');
+      gradPv.addColorStop(1, 'rgba(245, 226, 20, 0.02)');
+      ctx.fillStyle = gradPv;
+      ctx.fill();
 
-    ctx.beginPath();
-    pvProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYKw(v)) : ctx.lineTo(toX(i), toYKw(v))));
-    ctx.strokeStyle = '#D97706';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+      ctx.beginPath();
+      pvProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYKw(v)) : ctx.lineTo(toX(i), toYKw(v))));
+      ctx.strokeStyle = '#D97706';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
 
     // 2. Draw Load Line (Slate Grey)
-    ctx.beginPath();
-    loadProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYKw(v)) : ctx.lineTo(toX(i), toYKw(v))));
-    ctx.strokeStyle = '#64748b';
-    ctx.lineWidth = 1.8;
-    ctx.setLineDash([4, 3]);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    if (!hidden.load) {
+      ctx.beginPath();
+      loadProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYKw(v)) : ctx.lineTo(toX(i), toYKw(v))));
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     // 3. Draw BESS SoC Line (Brand Blue)
-    ctx.beginPath();
-    socProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYSoc(v)) : ctx.lineTo(toX(i), toYSoc(v))));
-    ctx.strokeStyle = '#12579B';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    if (!hidden.soc) {
+      ctx.beginPath();
+      socProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYSoc(v)) : ctx.lineTo(toX(i), toYSoc(v))));
+      ctx.strokeStyle = '#12579B';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
 
-    // 4. Draw Grid Import Line (Red), simulation only
-    if (gridProfile) {
+    // 4. Draw Grid Import Line (Red)
+    if (gridProfile && !hidden.grid) {
       ctx.beginPath();
       gridProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYKw(v)) : ctx.lineTo(toX(i), toYKw(v))));
       ctx.strokeStyle = '#BB1326';
@@ -250,13 +218,41 @@ const EnergyModel = {
       ctx.stroke();
     }
 
-    // 5. Draw Battery Power Line (Green, + discharge / - charge), simulation only
-    if (battProfile) {
+    // 5. Draw Battery Power Line (Green, + discharge / - charge)
+    if (battProfile && !hidden.batt) {
       ctx.beginPath();
       battProfile.forEach((v, i) => (i === 0 ? ctx.moveTo(toX(i), toYKw(v)) : ctx.lineTo(toX(i), toYKw(v))));
       ctx.strokeStyle = '#16A34A';
       ctx.lineWidth = 1.8;
       ctx.stroke();
+    }
+
+    // Hover crosshair: vertical guide line + a dot on each visible series.
+    if (hoverHour !== null) {
+      const x = toX(hoverHour);
+      ctx.beginPath();
+      ctx.moveTo(x, padT);
+      ctx.lineTo(x, padT + plotH);
+      ctx.strokeStyle = 'rgba(18, 87, 155, 0.45)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const dots = [];
+      if (!hidden.pv) dots.push([toYKw(pvProfile[hoverHour]), '#D97706']);
+      if (!hidden.load) dots.push([toYKw(loadProfile[hoverHour]), '#64748b']);
+      if (!hidden.soc) dots.push([toYSoc(socProfile[hoverHour]), '#12579B']);
+      if (gridProfile && !hidden.grid) dots.push([toYKw(gridProfile[hoverHour]), '#BB1326']);
+      if (battProfile && !hidden.batt) dots.push([toYKw(battProfile[hoverHour]), '#16A34A']);
+      dots.forEach(([y, color]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
     }
 
     // X-axis hour labels
@@ -266,5 +262,7 @@ const EnergyModel = {
       const x = toX(hr);
       ctx.fillText(String(hr).padStart(2, '0') + ':00', x - 14, h - 6);
     });
+
+    return geom;
   }
 };

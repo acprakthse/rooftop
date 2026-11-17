@@ -601,23 +601,28 @@
         </div>
       </section>
 
-      <!-- SECTION 04: 24-HOUR DISPATCH PROFILE -->
+      <!-- DISPATCH PROFILE (24-HOUR, FROM SIMULATION) -->
       <section class="bg-bgcard border border-slate-200 rounded-xl p-4">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div>
-            <span id="sec04-title" class="text-xs font-sans uppercase tracking-wider text-bess font-semibold">04 · PROFIL DISPATCH 24 JAM (ATURAN SEDERHANA)</span>
+            <span id="sec04-title" class="text-xs font-sans uppercase tracking-wider text-bess font-semibold">PROFIL DISPATCH 24 JAM</span>
             <p id="sec04-desc" class="text-xs text-slate-500">Profil pembangkitan PV, pengisian/pengosongan BESS, dan pemangkasan beban puncak (Peak Shaving)</p>
           </div>
-          <div class="flex flex-wrap items-center gap-4 text-xs font-sans">
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#D97706] inline-block"></span>Solar PV (kW)</span>
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-bess inline-block"></span>BESS SoC (%)</span>
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block"></span><span data-i18n="legendLoad">Beban Site (kW)</span></span>
-            <span id="legend-grid-import" class="hidden flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#BB1326] inline-block"></span><span data-i18n="legendGridImport">Impor Grid (kW)</span></span>
-            <span id="legend-battery" class="hidden flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#16A34A] inline-block"></span><span data-i18n="legendBattery">Baterai (kW)</span></span>
+          <div id="dispatch-legend" class="flex flex-wrap items-center gap-4 text-xs font-sans">
+            <span id="legend-pv" data-series="pv" class="legend-toggle flex items-center gap-1.5 cursor-pointer select-none" title="Klik untuk sembunyikan/tampilkan"><span class="w-2.5 h-2.5 rounded-full bg-[#D97706] inline-block"></span><span data-i18n="legendPv">Solar PV (kW)</span></span>
+            <span id="legend-soc" data-series="soc" class="legend-toggle flex items-center gap-1.5 cursor-pointer select-none" title="Klik untuk sembunyikan/tampilkan"><span class="w-2.5 h-2.5 rounded-full bg-bess inline-block"></span><span data-i18n="legendSoc">BESS SoC (%)</span></span>
+            <span id="legend-load" data-series="load" class="legend-toggle flex items-center gap-1.5 cursor-pointer select-none" title="Klik untuk sembunyikan/tampilkan"><span class="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block"></span><span data-i18n="legendLoad">Beban Site (kW)</span></span>
+            <span id="legend-grid-import" data-series="grid" class="legend-toggle hidden flex items-center gap-1.5 cursor-pointer select-none" title="Klik untuk sembunyikan/tampilkan"><span class="w-2.5 h-2.5 rounded-full bg-[#BB1326] inline-block"></span><span data-i18n="legendGridImport">Impor Grid (kW)</span></span>
+            <span id="legend-battery" data-series="batt" class="legend-toggle hidden flex items-center gap-1.5 cursor-pointer select-none" title="Klik untuk sembunyikan/tampilkan"><span class="w-2.5 h-2.5 rounded-full bg-[#16A34A] inline-block"></span><span data-i18n="legendBattery">Baterai (kW)</span></span>
           </div>
         </div>
-        <div class="w-full h-36">
+        <div class="w-full h-36 relative">
           <canvas id="dispatch-chart" class="w-full h-full"></canvas>
+          <div id="dispatch-tooltip" class="hidden absolute z-10 pointer-events-none bg-slate-800 text-white text-xs rounded-md px-2.5 py-2 shadow-lg whitespace-nowrap"></div>
+          <div id="dispatch-empty" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 rounded-lg bg-slate-50">
+            <p class="text-sm text-slate-500" data-i18n="sec04Empty">Belum ada simulasi. Jalankan simulasi detail di atas untuk melihat profil dispatch 24 jam.</p>
+            <button id="dispatch-empty-run" class="text-xs font-semibold bg-[#12579B] text-white rounded-md px-3 py-1.5 hover:bg-[#0e467d]" data-i18n="sec04EmptyBtn">Jalankan Simulasi Detail</button>
+          </div>
         </div>
       </section>
 
@@ -625,11 +630,11 @@
   </div>
 
   <!-- Modular JS Scripts -->
-  <script src="js/energy-model.js?v=9"></script>
+  <script src="js/energy-model.js?v=10"></script>
   <script src="js/solar.js?v=7"></script>
   <script src="js/scene3d.js?v=9"></script>
   <script src="js/shading.js?v=8"></script>
-  <script src="js/i18n.js?v=12"></script>
-  <script src="js/main.js?v=13"></script>
+  <script src="js/i18n.js?v=13"></script>
+  <script src="js/main.js?v=14"></script>
 </body>
 </html>
