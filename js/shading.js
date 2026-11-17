@@ -8,26 +8,36 @@
  * hip geometry, chimneys, or the BESS container. This analyzer measures
  * that shading from the actual 3D scene the user designed.
  *
- * Method:
- * - 12 representative days (the 15th of each month), hours 07:00-17:00
- *   solar time, true sun positions from Solar.sunPosition.
- * - Each active module is sampled at 5 points (center + 4 corners).
- *   From each point a ray is cast toward the sun; a hit on any roof
- *   mesh (other slope, ridge, wall, obstacle, BESS, neighbouring
- *   module) before the sun means that point is shaded.
- * - Each timestep is weighted by clear-sky beam energy
- *   (DNI x cos(incidence)); the annual loss is shaded beam energy
- *   divided by total beam energy. Months are weighted by days.
+ * Method (beam): 12 representative days (the 15th of each month),
+ * sampled hourly from sunrise to sunset solar time
+ * (Solar.daylightHours). The full sun-up period matters because
+ * self-shading happens at low sun. Each active module is sampled at 5
+ * points (center + 4 corners). From each point a ray is cast toward
+ * the sun; a hit on any roof mesh (other slope, ridge, wall, obstacle,
+ * BESS, neighbouring module) before the sun means that point is
+ * shaded. Each timestep is weighted by clear-sky beam energy
+ * (DNI x cos(incidence)); the annual beam loss is shaded beam energy
+ * divided by total beam energy. Months are weighted by days.
  *
- * Scope (honest): this is DIRECT-BEAM shading only. Diffuse shading
- * (sky-view reduction) is not included, so the true total shading loss
- * is slightly higher than the reported number. Modules facing away from
- * the sun at a given hour receive no beam, so they contribute no weight
- * for that hour (they are not counted as shaded).
+ * Method (diffuse): the sky-view factor per module, from a one-time
+ * hemisphere raycast (Fibonacci lattice, 200 directions above the
+ * module plane, module center only). Directions below the horizon see
+ * the ground, not the sky, and are excluded. Diffuse loss =
+ * 1 - (unblocked sky-weighted sum / unobstructed sum). This is the
+ * part a beam-only model misses: for a symmetric gable roof the
+ * opposite slope hides only sky the module cannot see anyway, so the
+ * gable beam loss is genuinely ~0 and the residual diffuse loss comes
+ * mainly from the end walls; for flat-tilt rows and hip ends the
+ * diffuse loss is larger.
+ *
+ * Combined loss = beam x (1 - diffuseFraction) + diffuse x
+ * diffuseFraction, with the location's assumed annual diffuse
+ * fraction (EnergyModel.locations[].diffuseFraction: typical values,
+ * not measured, replace with TMY-derived fractions when weather data
+ * is available). Ground-reflected diffuse (albedo) is not modeled.
  */
 
 const ShadingAnalyzer = {
-  REPRESENTATIVE_HOURS: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
   RAY_FAR: 80,
   SAMPLE_OFFSET: 0.06, // metres above the module surface along its normal
 
@@ -39,7 +49,9 @@ const ShadingAnalyzer = {
    * browser stays responsive.
    */
   async analyze(state, scene3d, onProgress) {
-    const lat = (EnergyModel.locations[state.siteLocation] || EnergyModel.locations.jakarta).lat;
+    const loc = EnergyModel.locations[state.siteLocation] || EnergyModel.locations.jakarta;
+    const lat = loc.lat;
+    const fDiff = loc.diffuseFraction != null ? loc.diffuseFraction : 0.4;
     scene3d.scene.updateMatrixWorld(true);
 
     const modules = this._collectModules(state, scene3d);
@@ -62,7 +74,9 @@ const ShadingAnalyzer = {
       let mEnergy = 0;
       let mShaded = 0;
 
-      for (const hour of this.REPRESENTATIVE_HOURS) {
+      // Full sun-up period for this day (e.g. 06-18 Jakarta, 04-20
+      // Oskarshamn in June, 09-15 Oskarshamn in December).
+      for (const hour of Solar.daylightHours(doy, lat)) {
         const sun = Solar.sunPosition(doy, hour, lat);
         if (sun.elevationDeg <= 1) continue; // sun effectively down
         const dir = Solar.sunDirection(sun.elevationDeg, sun.azimuthDeg);
@@ -95,24 +109,103 @@ const ShadingAnalyzer = {
       await new Promise((r) => setTimeout(r, 0)); // let the UI breathe
     }
 
+    // Diffuse (sky-view) pass: one-time hemisphere raycast, then combine
+    // with the beam result using the location's assumed diffuse fraction.
+    // Diffuse loss is time-independent, so monthly combined values reuse
+    // the annual diffuse loss.
+    const diffuse = this._diffuseLoss(modules, occluders, raycaster);
+    const beamAnnual = totalEnergy > 0 ? (totalShaded / totalEnergy) * 100 : 0;
+    const combinedAnnual = beamAnnual * (1 - fDiff) + diffuse.annual * fDiff;
+    const monthlyCombined = monthly.map((b) => b * (1 - fDiff) + diffuse.annual * fDiff);
+
     const perSlopeOut = {};
     for (const side of Object.keys(perSlope)) {
       const s = perSlope[side];
+      const beam = s.energy > 0 ? (s.shaded / s.energy) * 100 : 0;
+      const diff = diffuse.perSlope[side] != null ? diffuse.perSlope[side] : 0;
       perSlopeOut[side] = {
-        lossPercent: s.energy > 0 ? (s.shaded / s.energy) * 100 : 0,
+        lossPercent: beam * (1 - fDiff) + diff * fDiff,
+        beamLossPercent: beam,
+        diffuseLossPercent: diff,
         modules: modules.filter((m) => m.side === side).length
       };
     }
 
     return {
-      annualLossPercent: totalEnergy > 0 ? (totalShaded / totalEnergy) * 100 : 0,
-      monthlyLossPercent: monthly,
+      annualLossPercent: combinedAnnual,
+      beamLossPercent: beamAnnual,
+      diffuseLossPercent: diffuse.annual,
+      diffuseFraction: fDiff,
+      monthlyLossPercent: monthlyCombined,
+      monthlyBeamLossPercent: monthly,
       perSlope: perSlopeOut,
       moduleCount: modules.length,
       samplePoints: modules.length * 5,
       latitude: lat,
       computedAt: new Date().toISOString()
     };
+  },
+
+  // Diffuse shading: sky-view factor per module from a one-time
+  // hemisphere raycast. Directions use a Fibonacci lattice (uniform
+  // over the hemisphere above the module plane); each carries weight
+  // cos(incidence). Directions below the horizon see ground, not sky,
+  // and are excluded from both sums. Returns { annual, perSlope } in %.
+  _diffuseLoss(modules, occluders, raycaster) {
+    const dirs = this._fibonacciHemisphere(200);
+    const perSlope = {};
+    let totalFree = 0;
+    let totalBlocked = 0;
+
+    for (const mod of modules) {
+      // Orthonormal basis around the module normal.
+      const n = mod.normal;
+      const ref = Math.abs(n.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+      const t1 = new THREE.Vector3().crossVectors(n, ref).normalize();
+      const t2 = new THREE.Vector3().crossVectors(n, t1);
+      const origin = mod.points[0]; // module center, already offset above the surface
+      let sFree = 0;
+      let sBlocked = 0;
+      for (const d of dirs) {
+        const worldDir = new THREE.Vector3()
+          .addScaledVector(t1, d.x)
+          .addScaledVector(t2, d.y)
+          .addScaledVector(n, d.z);
+        if (worldDir.y <= 0) continue; // below the horizon: ground, not sky
+        sFree += d.z;
+        raycaster.set(origin, worldDir);
+        if (raycaster.intersectObjects(occluders, false).length === 0) sBlocked += d.z;
+      }
+      totalFree += sFree;
+      totalBlocked += sBlocked;
+      const s = perSlope[mod.side] || (perSlope[mod.side] = { free: 0, blocked: 0 });
+      s.free += sFree;
+      s.blocked += sBlocked;
+    }
+
+    const perSlopeOut = {};
+    for (const side of Object.keys(perSlope)) {
+      const s = perSlope[side];
+      perSlopeOut[side] = s.free > 0 ? (1 - s.blocked / s.free) * 100 : 0;
+    }
+    return {
+      annual: totalFree > 0 ? (1 - totalBlocked / totalFree) * 100 : 0,
+      perSlope: perSlopeOut
+    };
+  },
+
+  // Uniform directions over the hemisphere z > 0 (z = module normal),
+  // Fibonacci lattice, each sample carrying equal solid angle.
+  _fibonacciHemisphere(count) {
+    const dirs = [];
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < count; i++) {
+      const z = 1 - (i + 0.5) / count; // 1 .. ~0
+      const r = Math.sqrt(Math.max(0, 1 - z * z));
+      const theta = goldenAngle * i;
+      dirs.push({ x: r * Math.cos(theta), y: r * Math.sin(theta), z });
+    }
+    return dirs;
   },
 
   // Active modules only (holder groups). Obstacle cylinders are meshes,

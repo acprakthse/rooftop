@@ -76,6 +76,30 @@ const Solar = {
     };
   },
 
+  /**
+   * Integer solar hours with the sun above the horizon on a given day.
+   * From the sunrise hour angle: cos(H0) = -tan(lat) * tan(dec).
+   * Sampling the full sun-up period (instead of a fixed 07:00-17:00
+   * window) matters because self-shading happens exactly at low sun:
+   * at high latitudes the summer sun is up roughly 03:00-21:00, and a
+   * fixed window would miss the worst hours. Polar day/night are
+   * clamped (never occur at the supported latitudes, max 57 deg).
+   * Returns e.g. [6..18] for Jakarta, [4..20] for Oskarshamn in June.
+   */
+  daylightHours(dayOfYear, latDeg) {
+    const lat = latDeg * this.DEG;
+    const dec = this.declination(dayOfYear) * this.DEG;
+    let cosH0 = -Math.tan(lat) * Math.tan(dec);
+    if (cosH0 <= -1) return Array.from({ length: 24 }, (_, i) => i); // polar day
+    if (cosH0 >= 1) return []; // polar night
+    const h0 = Math.acos(cosH0) / this.DEG;
+    const sunrise = 12 - h0 / 15;
+    const sunset = 12 + h0 / 15;
+    const hours = [];
+    for (let h = Math.ceil(sunrise); h <= Math.floor(sunset); h++) hours.push(h);
+    return hours;
+  },
+
   /** Day of year for the 15th of a month (1-12), non-leap year. */
   midMonthDay(month) {
     const days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -117,5 +141,15 @@ if (typeof process !== 'undefined' && process.argv && process.argv[1] && process
   }
   console.log(`DNI clear-sky at elev 90: ${Solar.clearSkyDni(90).toFixed(0)} W/m2 (expect ~957)`);
   console.log(`DNI clear-sky at elev 30: ${Solar.clearSkyDni(30).toFixed(0)} W/m2 (expect ~760)`);
+  const dh = [
+    ['Jakarta equinox', Solar.daylightHours(79, -6.2), 6, 18],
+    ['Oskarshamn Jun 15', Solar.daylightHours(166, 57.26), 4, 20],
+    ['Oskarshamn Dec 15', Solar.daylightHours(349, 57.26), 9, 15]
+  ];
+  for (const [label, hours, expFirst, expLast] of dh) {
+    const pass = hours[0] === expFirst && hours[hours.length - 1] === expLast;
+    if (!pass) ok = false;
+    console.log(`${pass ? 'PASS' : 'FAIL'} daylight ${label}: ${hours[0]}..${hours[hours.length - 1]} (expect ${expFirst}..${expLast})`);
+  }
   if (!ok) process.exit(1);
 }

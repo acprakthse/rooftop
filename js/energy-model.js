@@ -9,9 +9,13 @@
 
 const EnergyModel = {
   locations: {
-    jakarta: { name: "Jakarta, ID", psh: 4.6, lat: -6.2, gridEf: 0.78, tariffIdr: 1444.7, tariffEur: 0.088 },
-    riau: { name: "Riau Islands", psh: 4.9, lat: 1.0, gridEf: 0.82, tariffIdr: 1650.0, tariffEur: 0.101 },
-    oskarshamn: { name: "Oskarshamn, SE", psh: 3.3, lat: 57.26, gridEf: 0.045, tariffIdr: 2950.0, tariffEur: 0.180 }
+    // diffuseFraction: assumed annual diffuse share of global irradiation
+    // (typical values, not measured, replace with TMY-derived fractions
+    // when weather data is available). Used only to combine the raycast
+    // beam and diffuse shading losses into one number.
+    jakarta: { name: "Jakarta, ID", psh: 4.6, lat: -6.2, gridEf: 0.78, tariffIdr: 1444.7, tariffEur: 0.088, diffuseFraction: 0.45 },
+    riau: { name: "Riau Islands", psh: 4.9, lat: 1.0, gridEf: 0.82, tariffIdr: 1650.0, tariffEur: 0.101, diffuseFraction: 0.45 },
+    oskarshamn: { name: "Oskarshamn, SE", psh: 3.3, lat: 57.26, gridEf: 0.045, tariffIdr: 2950.0, tariffEur: 0.180, diffuseFraction: 0.55 }
   },
 
   chemistries: {

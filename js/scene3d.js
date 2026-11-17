@@ -205,6 +205,21 @@ const Scene3D = {
 
     // 1. Building Base Walls
     const wallMat = new THREE.MeshStandardMaterial({ color: 0xc3ccd8, roughness: 0.85 });
+    // End walls are single triangles: they need DoubleSide, because
+    // shading rays from the modules hit their inner face (a FrontSide
+    // triangle would be invisible to the raycaster from that side).
+    const wallMatDouble = new THREE.MeshStandardMaterial({ color: 0xc3ccd8, roughness: 0.85, side: THREE.DoubleSide });
+    const addTriangle = (ax, ay, az, bx, by, bz, cx, cy, cz) => {
+      const triGeo = new THREE.BufferGeometry();
+      triGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+        ax, ay, az, bx, by, bz, cx, cy, cz
+      ]), 3));
+      triGeo.computeVertexNormals();
+      const triMesh = new THREE.Mesh(triGeo, wallMatDouble);
+      triMesh.castShadow = true;
+      triMesh.receiveShadow = true;
+      this.rootGroup.add(triMesh);
+    };
     const wallGeo = new THREE.BoxGeometry(L, H, W);
     const wallMesh = new THREE.Mesh(wallGeo, wallMat);
     wallMesh.position.y = H / 2;
@@ -235,15 +250,34 @@ const Scene3D = {
     if (state.roofType === 'gable-dual' || state.roofType === 'gable-single' || state.roofType === 'hip') {
       const ridgeH = Math.tan(tiltRad) * halfW;
       rafterLength = halfW / Math.cos(tiltRad);
+      // True hip geometry: all four slopes share the same pitch, so the
+      // hip end slopes run halfW horizontally from the end eave to the
+      // ridge end. Ridge length = L - W (0 = pyramid hip when L <= W).
+      // Gable roofs keep the full-length ridge.
+      const isHip = state.roofType === 'hip';
+      const ridgeLength = isHip ? Math.max(0, L - W) : L;
+      const ridgeHalf = ridgeLength / 2;
 
-      // Create South & North Slope Planes
+      // Create South & North Slope Planes (trapezoids for hip, rectangles
+      // for gable the same code, ridgeLength == L makes it rectangular).
+      // Local frame: +X along the building length, +Z down-slope to the
+      // eave, +Y the slope normal. Eave edge (local z = +rafter/2) is
+      // width L; ridge edge (local z = -rafter/2) is width ridgeLength.
       [-1, 1].forEach((sideSign) => {
         const slopeGroup = new THREE.Group();
         slopeGroup.position.set(0, H + ridgeH / 2, (sideSign * halfW) / 2);
         slopeGroup.rotation.x = sideSign * tiltRad;
 
-        const roofSlabGeo = new THREE.BoxGeometry(L + 0.4, 0.22, rafterLength + 0.2);
-        const roofSlab = new THREE.Mesh(roofSlabGeo, roofMat);
+        const slabGeo = new THREE.BufferGeometry();
+        const hw = L / 2;
+        const rl = rafterLength;
+        const verts = new Float32Array([
+          -hw, 0, rl / 2, hw, 0, rl / 2, ridgeHalf, 0, -rl / 2,
+          -hw, 0, rl / 2, ridgeHalf, 0, -rl / 2, -ridgeHalf, 0, -rl / 2
+        ]);
+        slabGeo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+        slabGeo.computeVertexNormals();
+        const roofSlab = new THREE.Mesh(slabGeo, roofMat);
         roofSlab.castShadow = true;
         roofSlab.receiveShadow = true;
         slopeGroup.add(roofSlab);
@@ -259,10 +293,74 @@ const Scene3D = {
             pH,
             state,
             sideSign === 1 ? 'S' : 'N',
-            0
+            0,
+            isHip ? 'hipNS' : 'none'
           );
         }
       });
+
+      // Gable end walls: triangular walls closing the gap under the roof
+      // at both ends. Real geometry on a real building, and they shade
+      // the end modules at low off-axis sun (the ridge itself cannot
+      // shade either slope, being a line in both slope planes). Hip
+      // roofs have no end walls: their ends are the triangular slopes.
+      if (!isHip) {
+        [1, -1].forEach((endSign) => {
+          const x = endSign * (L / 2);
+          addTriangle(x, H, -halfW, x, H, halfW, x, H + ridgeH, 0);
+        });
+      }
+
+      // Hip only: triangular East & West slopes, with panels.
+      // Each triangle: base = end eave (width W at x = +/-L/2, y = H),
+      // apex = ridge end (+/-ridgeHalf, H + ridgeH, 0). The slope group
+      // is built from an explicit orthonormal basis so its local axes
+      // are exact: local +X runs apex -> eave (rafter direction),
+      // local +Y is the outward slope normal, local +Z runs along the
+      // building width. NOTE (illustrative model): these panels are
+      // counted into kWp in EnergyModel with the main-azimuth
+      // orientation factor, the east/west azimuths are not derated
+      // separately. The raycast shading loss per slope IS exact.
+      if (isHip) {
+        [1, -1].forEach((endSign) => {
+          const apexX = endSign * ridgeHalf;
+          const eaveX = endSign * (L / 2);
+          const triGeo = new THREE.BufferGeometry();
+          const triVerts = new Float32Array([
+            eaveX, H, -halfW, eaveX, H, halfW, apexX, H + ridgeH, 0
+          ]);
+          triGeo.setAttribute('position', new THREE.BufferAttribute(triVerts, 3));
+          triGeo.computeVertexNormals();
+          const triSlab = new THREE.Mesh(triGeo, roofMat);
+          triSlab.castShadow = true;
+          triSlab.receiveShadow = true;
+          this.rootGroup.add(triSlab);
+
+          const midX = (eaveX + apexX) / 2;
+          const cosT = Math.cos(tiltRad);
+          const sinT = Math.sin(tiltRad);
+          const xAxis = new THREE.Vector3(endSign * cosT, -sinT, 0);
+          const yAxis = new THREE.Vector3(endSign * sinT, cosT, 0);
+          const zAxis = new THREE.Vector3(0, 0, endSign);
+          const basis = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
+          const endGroup = new THREE.Group();
+          endGroup.position.set(midX, H + ridgeH / 2, 0);
+          endGroup.quaternion.setFromRotationMatrix(basis);
+          this.rootGroup.add(endGroup);
+
+          activePanelsCount += this.populateSlopePanels(
+            endGroup,
+            rafterLength,
+            W,
+            pW,
+            pH,
+            state,
+            endSign === 1 ? 'E' : 'W',
+            0,
+            'hipEW'
+          );
+        });
+      }
     } else if (state.roofType === 'shed') {
       const riseH = Math.tan(tiltRad) * W;
       rafterLength = W / Math.cos(tiltRad);
@@ -277,6 +375,13 @@ const Scene3D = {
       roofSlab.receiveShadow = true;
       slopeGroup.add(roofSlab);
       this.rootGroup.add(slopeGroup);
+
+      // Shed end walls: right triangles closing the wedge under the
+      // single slope at both ends (vertical edge on the high north side).
+      [1, -1].forEach((endSign) => {
+        const x = endSign * (L / 2);
+        addTriangle(x, H, -halfW, x, H, halfW, x, H + riseH, -halfW);
+      });
 
       activePanelsCount += this.populateSlopePanels(slopeGroup, L, rafterLength, pW, pH, state, 'SHED', 0);
     } else if (state.roofType === 'flat-tilt') {
@@ -308,7 +413,7 @@ const Scene3D = {
     return { activePanelsCount, rafterLength };
   },
 
-  populateSlopePanels(parentGroup, availLen, availSlopeWidth, pW, pH, state, sideId, localRackTiltRad) {
+  populateSlopePanels(parentGroup, availLen, availSlopeWidth, pW, pH, state, sideId, localRackTiltRad, taperMode = 'none') {
     const setback = state.roofSetback;
     const usableX = Math.max(0, availLen - 2 * setback);
     const usableZ = Math.max(0, availSlopeWidth - 2 * setback);
@@ -338,17 +443,27 @@ const Scene3D = {
     let count = 0;
 
     for (let r = 0; r < rows; r++) {
-      // Hip roof trapezoid clipping
-      let hipMarginCols = 0;
-      if (state.roofType === 'hip') {
-        const normRow = r / Math.max(1, rows - 1);
-        hipMarginCols = Math.floor((1 - normRow) * (cols * 0.28));
-      }
-
-      for (let c = hipMarginCols; c < cols - hipMarginCols; c++) {
-        const slotKey = `${sideId}-${r}-${c}`;
+      for (let c = 0; c < cols; c++) {
         const posX = startX + c * colStep;
         const posZ = startZ + r * rowStep;
+
+        // Hip clipping, checked per panel against the real slope shape
+        // (not by row index: the panel grid does not span the full
+        // rafter, so a row's geometric position is what matters).
+        // The binding edge is the panel's narrow side, the ridge-side
+        // edge for N/S trapezoids, the apex-side edge for E/W triangles.
+        if (taperMode === 'hipNS') {
+          const ridgeHalf = Math.max(0, (state.roofLength - state.roofWidth) / 2);
+          const fracNarrow = (posZ - pH / 2 + availSlopeWidth / 2) / Math.max(0.001, availSlopeWidth);
+          const halfAllowed = ridgeHalf + Math.max(0, Math.min(1, fracNarrow)) * (availLen / 2 - ridgeHalf);
+          if (Math.abs(posX) + pW / 2 > halfAllowed + 0.01) continue;
+        }
+        if (taperMode === 'hipEW') {
+          const fracNarrow = (posX - pW / 2 + availLen / 2) / Math.max(0.001, availLen);
+          const halfAllowed = (availSlopeWidth / 2) * Math.max(0, Math.min(1, fracNarrow));
+          if (Math.abs(posZ) + pH / 2 > halfAllowed + 0.01) continue;
+        }
+        const slotKey = `${sideId}-${r}-${c}`;
 
         if (this.disabledSlots.has(slotKey)) {
           // Render 3D Obstacle (HVAC / Chimney)

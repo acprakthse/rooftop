@@ -68,6 +68,8 @@ function geometryFingerprint() {
 function slopeLabel(side) {
   if (side === 'S') return I18n.t('dirS');
   if (side === 'N') return I18n.t('dirN');
+  if (side === 'E') return I18n.t('dirE');
+  if (side === 'W') return I18n.t('dirW');
   if (side === 'FLAT') return I18n.t('slopeFlat');
   return side; // SHED and anything else keep their code
 }
@@ -96,6 +98,11 @@ function renderShadingUI() {
   document.getElementById('shading-annual').textContent = shadingResult.annualLossPercent.toFixed(1);
   document.getElementById('shading-modules').textContent = I18n.t('shadingModules', {
     n: shadingResult.moduleCount, m: shadingResult.samplePoints
+  });
+  document.getElementById('shading-split').textContent = I18n.t('shadingSplit', {
+    b: shadingResult.beamLossPercent.toFixed(1),
+    d: shadingResult.diffuseLossPercent.toFixed(1),
+    f: Math.round(shadingResult.diffuseFraction * 100)
   });
   if (lastMetrics) {
     const shaded = lastMetrics.annualMwh;
