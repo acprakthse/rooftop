@@ -323,14 +323,20 @@ function renderPysamUI() {
   const statusEl = document.getElementById('pysam-status');
   const resultsEl = document.getElementById('pysam-results');
   const runBtn = document.getElementById('run-pysam');
+  const shadeBtn = document.getElementById('run-pysam-shading');
   if (!statusEl || !resultsEl || !runBtn) return;
 
   runBtn.disabled = pysamRunning || shadingRunning;
+  if (shadeBtn) shadeBtn.disabled = pysamRunning || shadingRunning;
   if (!pysamRunning) runBtn.textContent = I18n.t('pysamRun');
 
   if (pysamRunning) return; // status line is driven by the runner
   if (!pysamResult) {
-    statusEl.textContent = I18n.t('pysamNotRun');
+    // No result yet: show whether shading is measured, so the order is
+    // visible (change dimensions -> run shading -> run simulation).
+    statusEl.textContent = shadingResult
+      ? I18n.t('pysamReady', { v: shadingResult.annualLossPercent.toFixed(1) })
+      : I18n.t('pysamNotRun');
     resultsEl.classList.add('hidden');
     return;
   }
@@ -574,6 +580,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Detailed PySAM simulation (per-slope, via Cloud Run)
   document.getElementById('run-pysam').addEventListener('click', () => {
     runPysamSimulation();
+  });
+
+  // Shading first, from the PySAM section: same analysis as the shading
+  // section's button, with progress shown in the PySAM status line.
+  document.getElementById('run-pysam-shading').addEventListener('click', () => {
+    const statusEl = document.getElementById('pysam-status');
+    runShadingAnalysis((frac) => {
+      if (statusEl) statusEl.textContent = I18n.t('pysamRunningShading', { v: Math.round(frac * 100) });
+    });
   });
 
   window.addEventListener('resize', () => updateAll());

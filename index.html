@@ -392,7 +392,10 @@
             <span class="text-xs font-sans uppercase tracking-wider text-bess font-semibold" data-i18n="pysamTitle">SIMULASI DETAIL · PySAM (PVWatts + BESS)</span>
             <p class="text-xs text-slate-500 mt-0.5 max-w-2xl" data-i18n="pysamDesc">Menjalankan model PySAM (PVWatts v8 + baterai + ekonomi) di Cloud Run dengan data tiap lereng dari model 3D: jumlah modul, tilt, azimuth, dan shading raycast. Cuaca memakai file TMYx per lokasi.</p>
           </div>
-          <button id="run-pysam" class="px-3.5 py-2 rounded-lg bg-[#F5E214] text-slate-900 text-xs font-sans font-semibold hover:bg-[#e3d11a] transition disabled:opacity-50 disabled:cursor-wait shrink-0" data-i18n="pysamRun">Jalankan Simulasi Detail</button>
+          <div class="flex gap-2 shrink-0">
+            <button id="run-pysam-shading" class="px-3.5 py-2 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50 disabled:cursor-wait" data-i18n="shadingRun">Hitung Shading</button>
+            <button id="run-pysam" class="px-3.5 py-2 rounded-lg bg-[#F5E214] text-slate-900 text-xs font-sans font-semibold hover:bg-[#e3d11a] transition disabled:opacity-50 disabled:cursor-wait" data-i18n="pysamRun">Jalankan Simulasi Detail</button>
+          </div>
         </div>
         <p id="pysam-status" class="text-xs font-sans text-slate-500 mt-3" data-i18n="pysamNotRun">Belum dijalankan. Satu simulasi memakan waktu sekitar 40 detik (server bangun dari tidur) ditambah waktu shading bila belum dihitung.</p>
         <div id="pysam-results" class="hidden mt-3">
