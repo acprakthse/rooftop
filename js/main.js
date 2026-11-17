@@ -96,15 +96,25 @@ function updateAuthUI() {
     if (label) label.textContent = authUser.email || authUser.displayName || '';
     if (quotaEl) {
       if (authQuota) {
-        const left = Math.max(0, authQuota.total - authQuota.used);
-        quotaEl.textContent = I18n.t('authQuotaLeft', { v: left, t: authQuota.total });
-        if (pill) {
-          pill.classList.remove('hidden');
-          pill.classList.add('flex');
-          // Warna pill mengikuti sisa kuota: kuning saat masih banyak,
-          // oranye saat tinggal 1, merah saat habis.
-          pill.style.background = left === 0 ? '#BB1326' : left === 1 ? '#D97706' : '#F5E214';
-          pill.style.color = left <= 1 ? '#ffffff' : '#0f172a';
+        if (authQuota.exempt) {
+          quotaEl.textContent = I18n.t('authQuotaExempt');
+          if (pill) {
+            pill.classList.remove('hidden');
+            pill.classList.add('flex');
+            pill.style.background = '#F5E214';
+            pill.style.color = '#0f172a';
+          }
+        } else {
+          const left = Math.max(0, authQuota.total - authQuota.used);
+          quotaEl.textContent = I18n.t('authQuotaLeft', { v: left, t: authQuota.total });
+          if (pill) {
+            pill.classList.remove('hidden');
+            pill.classList.add('flex');
+            // Warna pill mengikuti sisa kuota: kuning saat masih banyak,
+            // oranye saat tinggal 1, merah saat habis.
+            pill.style.background = left === 0 ? '#BB1326' : left === 1 ? '#D97706' : '#F5E214';
+            pill.style.color = left <= 1 ? '#ffffff' : '#0f172a';
+          }
         }
       } else {
         quotaEl.textContent = '';
@@ -171,7 +181,7 @@ async function refreshQuota() {
     const res = await fetch(PYSAM_API_URL + '/me', { headers: authHeaders() });
     if (res.ok) {
       const me = await res.json();
-      if (me.auth_enabled) authQuota = { used: me.quota_used, total: me.quota_total, plan: me.plan };
+      if (me.auth_enabled) authQuota = { used: me.quota_used, total: me.quota_total, plan: me.plan, exempt: !!me.exempt };
     }
   } catch (e) { /* tampilan kuota bersifat best-effort */ }
 }
@@ -545,7 +555,7 @@ async function runPysamSimulation() {
     pysamFingerprint = JSON.stringify(payload);
     pysamQuickMwh = lastMetrics ? lastMetrics.annualMwh : null;
     if (pysamResult.quota) {
-      authQuota = { used: pysamResult.quota.used, total: pysamResult.quota.total, plan: pysamResult.quota.plan };
+      authQuota = { used: pysamResult.quota.used, total: pysamResult.quota.total, plan: pysamResult.quota.plan, exempt: !!pysamResult.quota.exempt };
       updateAuthUI();
     }
   } catch (err) {
