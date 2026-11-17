@@ -67,6 +67,164 @@ let pysamQuickMwh = null; // quick-estimate yield at run time, for comparison
 // the mouse (crosshair + tooltip). geom: plot geometry from the last draw.
 const dispatchChart = { simDay: null, hidden: {}, hoverHour: null, geom: null };
 
+// ---- Login (Firebase Auth) + kuota simulasi ----
+// authConfigured: false selama FIREBASE_CONFIG masih placeholder (login
+// belum disiapkan di console) -> simulasi tetap terbuka seperti dulu.
+// Bila Firebase terisi: simulasi detail mewajibkan login; backend
+// menegakkan kuota (gratis 5 simulasi per akun; field plan + quota
+// di Firestore dipersiapkan untuk fitur berbayar).
+let authUser = null;      // firebase.User | null
+let authIdToken = null;   // string | null
+let authQuota = null;     // {used, total, plan} | null
+const authConfigured = (typeof FIREBASE_CONFIG !== 'undefined'
+  && FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('PASTE-'));
+
+function authHeaders() {
+  return authIdToken ? { 'Authorization': 'Bearer ' + authIdToken } : {};
+}
+
+function updateAuthUI() {
+  const btn = document.getElementById('auth-btn');
+  const chip = document.getElementById('auth-user');
+  const label = document.getElementById('auth-user-label');
+  const quotaEl = document.getElementById('auth-quota');
+  if (!btn || !chip) return;
+  if (authUser) {
+    btn.classList.add('hidden');
+    chip.classList.remove('hidden');
+    chip.classList.add('flex');
+    if (label) label.textContent = authUser.email || authUser.displayName || '';
+    if (quotaEl) quotaEl.textContent = authQuota
+      ? I18n.t('authQuotaLeft', { v: Math.max(0, authQuota.total - authQuota.used), t: authQuota.total })
+      : '';
+  } else {
+    btn.classList.remove('hidden');
+    chip.classList.add('hidden');
+    chip.classList.remove('flex');
+  }
+}
+
+function openAuthModal(noteKey) {
+  const modal = document.getElementById('auth-modal');
+  const note = document.getElementById('auth-modal-note');
+  const notCfg = document.getElementById('auth-not-configured');
+  const form = document.getElementById('auth-form');
+  const err = document.getElementById('auth-error');
+  if (!modal) return;
+  if (err) { err.textContent = ''; err.classList.add('hidden'); }
+  if (note) {
+    if (noteKey) { note.textContent = I18n.t(noteKey); note.classList.remove('hidden'); }
+    else note.classList.add('hidden');
+  }
+  const ready = authConfigured && typeof firebase !== 'undefined';
+  if (notCfg) notCfg.classList.toggle('hidden', ready);
+  if (form) form.classList.toggle('hidden', !ready);
+  modal.classList.remove('hidden');
+}
+
+function closeAuthModal() {
+  const modal = document.getElementById('auth-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function authErrorMessage(code) {
+  const map = {
+    'auth/invalid-email': 'authErrInvalidEmail',
+    'auth/user-not-found': 'authErrWrongCreds',
+    'auth/wrong-password': 'authErrWrongCreds',
+    'auth/invalid-credential': 'authErrWrongCreds',
+    'auth/email-already-in-use': 'authErrInUse',
+    'auth/weak-password': 'authErrWeakPw',
+    'auth/popup-closed-by-user': 'authErrPopupClosed',
+    'auth/network-request-failed': 'authErrNetwork'
+  };
+  return I18n.t(map[code] || 'authErrorGeneric');
+}
+
+function setAuthBusy(busy) {
+  ['auth-signin', 'auth-register', 'auth-google'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = busy;
+  });
+}
+
+async function refreshQuota() {
+  if (!authIdToken) return;
+  try {
+    const res = await fetch(PYSAM_API_URL + '/me', { headers: authHeaders() });
+    if (res.ok) {
+      const me = await res.json();
+      if (me.auth_enabled) authQuota = { used: me.quota_used, total: me.quota_total, plan: me.plan };
+    }
+  } catch (e) { /* tampilan kuota bersifat best-effort */ }
+}
+
+async function doEmailAuth(isRegister) {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const err = document.getElementById('auth-error');
+  const showErr = (msg) => { if (err) { err.textContent = msg; err.classList.remove('hidden'); } };
+  if (!email || !password) { showErr(I18n.t('authErrorGeneric')); return; }
+  setAuthBusy(true);
+  try {
+    if (isRegister) await firebase.auth().createUserWithEmailAndPassword(email, password);
+    else await firebase.auth().signInWithEmailAndPassword(email, password);
+    closeAuthModal();
+  } catch (e) {
+    showErr(authErrorMessage(e.code));
+  } finally {
+    setAuthBusy(false);
+  }
+}
+
+async function doGoogleAuth() {
+  const err = document.getElementById('auth-error');
+  setAuthBusy(true);
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await firebase.auth().signInWithPopup(provider);
+    closeAuthModal();
+  } catch (e) {
+    if (err) { err.textContent = authErrorMessage(e.code); err.classList.remove('hidden'); }
+  } finally {
+    setAuthBusy(false);
+  }
+}
+
+function initAuth() {
+  const btn = document.getElementById('auth-btn');
+  if (btn) btn.addEventListener('click', () => openAuthModal(null));
+  const closeBtn = document.getElementById('auth-close');
+  if (closeBtn) closeBtn.addEventListener('click', closeAuthModal);
+  const modal = document.getElementById('auth-modal');
+  if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeAuthModal(); });
+  const logoutBtn = document.getElementById('auth-logout');
+  if (logoutBtn) logoutBtn.addEventListener('click', async () => {
+    try { await firebase.auth().signOut(); } catch (e) { /* abaikan */ }
+  });
+  const signinBtn = document.getElementById('auth-signin');
+  if (signinBtn) signinBtn.addEventListener('click', () => doEmailAuth(false));
+  const registerBtn = document.getElementById('auth-register');
+  if (registerBtn) registerBtn.addEventListener('click', () => doEmailAuth(true));
+  const googleBtn = document.getElementById('auth-google');
+  if (googleBtn) googleBtn.addEventListener('click', doGoogleAuth);
+  if (!authConfigured || typeof firebase === 'undefined') return;
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+  } catch (e) { /* sudah diinisialisasi */ }
+  firebase.auth().onAuthStateChanged(async (user) => {
+    authUser = user;
+    if (user) {
+      try { authIdToken = await user.getIdToken(); } catch (e) { authIdToken = null; }
+      await refreshQuota();
+    } else {
+      authIdToken = null;
+      authQuota = null;
+    }
+    updateAuthUI();
+  });
+}
+
 // ---- User-supplied input data (uploads + manual load) ----
 // Load profile: auto (annual load derived from kWp, commercial shape),
 // manual (annual kWh + shape preset), or csv (uploaded 8760 hourly kW).
@@ -280,6 +438,12 @@ function buildPysamPayload() {
 
 async function runPysamSimulation() {
   if (pysamRunning) return;
+  // Bila login sudah disiapkan, simulasi detail mewajibkan login (kuota
+  // dihitung per akun). Bila belum disiapkan, simulasi tetap terbuka.
+  if (authConfigured && !authUser) {
+    openAuthModal('authNeedLogin');
+    return;
+  }
   const statusEl = document.getElementById('pysam-status');
   const runBtn = document.getElementById('run-pysam');
   pysamRunning = true;
@@ -331,19 +495,30 @@ async function runPysamSimulation() {
         form.append('epw', new Blob([weatherInput.epw.text], { type: 'text/plain' }), weatherInput.epw.name);
         response = await fetch(PYSAM_API_URL + '/simulate-epw', {
           method: 'POST',
+          headers: authHeaders(),
           body: form,
           signal: controller.signal
         });
       } else {
         response = await fetch(PYSAM_API_URL + '/simulate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify(payload),
           signal: controller.signal
         });
       }
     } finally {
       clearTimeout(timer);
+    }
+    if (response.status === 401) {
+      authIdToken = null;
+      authUser = null;
+      updateAuthUI();
+      openAuthModal('authSessionExpired');
+      throw new Error(I18n.t('authSessionExpired'));
+    }
+    if (response.status === 402) {
+      throw new Error(I18n.t('authQuotaOut'));
     }
     if (!response.ok) {
       const text = await response.text();
@@ -352,11 +527,145 @@ async function runPysamSimulation() {
     pysamResult = await response.json();
     pysamFingerprint = JSON.stringify(payload);
     pysamQuickMwh = lastMetrics ? lastMetrics.annualMwh : null;
+    if (pysamResult.quota) {
+      authQuota = { used: pysamResult.quota.used, total: pysamResult.quota.total, plan: pysamResult.quota.plan };
+      updateAuthUI();
+    }
   } catch (err) {
     if (statusEl) statusEl.textContent = I18n.t('pysamError', { msg: err.message || String(err) });
   } finally {
     pysamRunning = false;
     updateAll(); // refresh everything, including the PySAM results
+  }
+}
+
+// ---- Unduh laporan (PDF / Excel / Word via backend, CSV dari browser) ----
+// PDF/Excel/Word dirender backend dari hasil simulasi yang sudah ada
+// (tanpa simulasi ulang, tanpa kuota). CSV dibuat di browser dari
+// array hourly (8760 jam) yang ikut dalam respons simulasi.
+let reportRunning = false;
+
+function buildReportMeta() {
+  const r = pysamResult;
+  const roofSel = document.getElementById('roof-type');
+  const roofLabel = roofSel && roofSel.selectedIndex >= 0
+    ? roofSel.options[roofSel.selectedIndex].textContent.trim() : AppState.roofType;
+  const chem = EnergyModel.chemistries[AppState.bessChemistry];
+  const meta = {
+    location_name: r.inputs.location_name,
+    weather_source: r.inputs.weather_source,
+    load_label: r.inputs.load_profile,
+    roof_type_label: roofLabel,
+    roof_length_m: AppState.roofLength,
+    roof_width_m: AppState.roofWidth,
+    roof_tilt_deg: AppState.roofTilt,
+    orientation_deg: AppState.orientation,
+    module_label: AppState.customModule
+      ? AppState.customModule.name + ' (' + AppState.customModule.wp + ' Wp)'
+      : AppState.panelWp + ' Wp',
+    bess_label: customBess
+      ? customBess.name
+      : (chem ? chem.label : AppState.bessChemistry) + ' · ' + AppState.bessKwh + ' kWh / ' + AppState.bessKw + ' kW',
+    generated_at_iso: new Date().toISOString()
+  };
+  if (shadingResult) {
+    const perSlope = {};
+    Object.keys(shadingResult.perSlope || {}).forEach((side) => {
+      perSlope[side] = shadingResult.perSlope[side].lossPercent;
+    });
+    meta.shading = {
+      annual_loss_percent: shadingResult.annualLossPercent,
+      beam_loss_percent: shadingResult.beamLossPercent,
+      diffuse_loss_percent: shadingResult.diffuseLossPercent,
+      monthly_loss_percent: shadingResult.monthlyLossPercent,
+      per_slope: perSlope
+    };
+  }
+  return meta;
+}
+
+function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function setReportBusy(busy) {
+  document.querySelectorAll('.report-btn').forEach((b) => { b.disabled = busy; });
+}
+
+function downloadHourlyCsv() {
+  const statusEl = document.getElementById('report-status');
+  const h = pysamResult.hourly;
+  if (!h || !h.pv_kw || h.pv_kw.length !== 8760) {
+    if (statusEl) statusEl.textContent = I18n.t('reportError');
+    return;
+  }
+  const cols = ['pv_kw', 'load_kw', 'import_kw', 'export_kw', 'battery_kw', 'soc_percent', 'curtailed_kw'];
+  const lines = ['hour,' + cols.join(',')];
+  for (let i = 0; i < 8760; i++) {
+    lines.push(i + ',' + cols.map((c) => h[c][i]).join(','));
+  }
+  downloadTextFile('profil-per-jam.csv', lines.join('\n'));
+  if (statusEl) statusEl.textContent = I18n.t('reportDone');
+}
+
+async function downloadReport(format) {
+  if (reportRunning) return;
+  const statusEl = document.getElementById('report-status');
+  if (!pysamIsFresh() || !pysamResult) {
+    if (statusEl) statusEl.textContent = I18n.t('reportNeedSim');
+    return;
+  }
+  if (format === 'csv') {
+    downloadHourlyCsv();
+    return;
+  }
+  reportRunning = true;
+  setReportBusy(true);
+  try {
+    if (statusEl) statusEl.textContent = I18n.t('reportDownloading');
+    const roofImage = (format === 'pdf' || format === 'docx')
+      ? (typeof Scene3D !== 'undefined' ? Scene3D.snapshot() : null)
+      : null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 120000);
+    let response;
+    try {
+      response = await fetch(PYSAM_API_URL + '/report-' + format, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          result: pysamResult,
+          meta: buildReportMeta(),
+          roof_image: roofImage,
+          lang: I18n.lang
+        }),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+    if (response.status === 401) {
+      openAuthModal('authSessionExpired');
+      throw new Error(I18n.t('authSessionExpired'));
+    }
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const blob = await response.blob();
+    const cd = response.headers.get('Content-Disposition') || '';
+    const m = /filename="([^"]+)"/.exec(cd);
+    downloadBlob(m ? m[1] : 'laporan-simulasi.' + format, blob);
+    if (statusEl) statusEl.textContent = I18n.t('reportDone');
+  } catch (err) {
+    if (statusEl) statusEl.textContent = I18n.t('reportError');
+  } finally {
+    reportRunning = false;
+    setReportBusy(false);
   }
 }
 
@@ -802,8 +1111,7 @@ function renderDispatchChart(metrics) {
   const emptyEl = document.getElementById('dispatch-empty');
   const sim = pysamIsFresh() ? pysamResult : null;
   if (sim && sim.typical_day) {
-    const mode = sim.dispatch && sim.dispatch.mode === 'pysam' ? 'PySAM' : 'MILP';
-    if (titleEl) titleEl.textContent = I18n.t('sec04Sim', { mode });
+    if (titleEl) titleEl.textContent = I18n.t('sec04Sim');
     if (descEl) descEl.textContent = I18n.t('sec04SimDesc');
     if (legendEl) legendEl.classList.remove('hidden');
     if (gridLegend) gridLegend.classList.remove('hidden');
@@ -943,8 +1251,7 @@ function renderPysamUI() {
     if (d && d.mode === 'milp') {
       dispatchEl.textContent = I18n.t('pysamDispatchMilp', {
         curt: ((r.annual_kwh.curtailed_kwh || 0) / 1000).toFixed(2),
-        t: d.solve_seconds != null ? d.solve_seconds.toFixed(1) : '-',
-        status: d.termination_condition || '-'
+        t: d.solve_seconds != null ? d.solve_seconds.toFixed(1) : '-'
       });
     } else if (d && d.mode === 'pysam') {
       dispatchEl.textContent = I18n.t('pysamDispatchPysam');
@@ -1357,6 +1664,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('language-toggle').addEventListener('click', () => {
     I18n.setLanguage(I18n.lang === 'id' ? 'en' : 'id');
     updateAll();
+    updateAuthUI();
   });
 
   // Camera Presets
@@ -1381,6 +1689,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Interactive dispatch chart (hover tooltip + legend toggles + empty state)
   initDispatchChart();
+
+  // Login (Firebase Auth) + report downloads
+  initAuth();
+  document.querySelectorAll('.report-btn').forEach((b) => {
+    b.addEventListener('click', () => downloadReport(b.getAttribute('data-report')));
+  });
 
   window.addEventListener('resize', () => updateAll());
   updateAll();

@@ -56,6 +56,12 @@
         <button id="language-toggle" class="text-xs font-sans px-2.5 py-1.5 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition">
           <span data-i18n="language">Bahasa</span>: <span id="language-label" class="text-brand font-bold">Indonesia</span>
         </button>
+        <button id="auth-btn" class="text-xs font-sans px-2.5 py-1.5 rounded bg-[#12579B] text-white font-semibold hover:bg-[#0e467d] transition" data-i18n="authLogin">Masuk</button>
+        <span id="auth-user" class="hidden items-center gap-2 text-xs font-sans">
+          <span id="auth-user-label" class="text-slate-700 font-semibold max-w-[140px] truncate"></span>
+          <span id="auth-quota" class="text-slate-500"></span>
+          <button id="auth-logout" class="px-2 py-1 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition" data-i18n="authLogout">Keluar</button>
+        </span>
       </div>
     </div>
   </header>
@@ -476,12 +482,12 @@
         </div>
       </section>
 
-      <!-- DETAILED SIMULATION (PySAM API, PER-SLOPE) -->
+      <!-- DETAILED SIMULATION (PER-SLOPE) -->
       <section class="bg-bgcard border border-slate-200 rounded-xl p-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <span class="text-xs font-sans uppercase tracking-wider text-bess font-semibold" data-i18n="pysamTitle">SIMULASI DETAIL · PySAM (PVWatts + BESS)</span>
-            <p class="text-xs text-slate-500 mt-0.5 max-w-2xl" data-i18n="pysamDesc">Menjalankan PVWatts v8 + dispatch MILP (Pyomo/HiGHS) + ekonomi di Cloud Run dengan data tiap lereng dari model 3D: jumlah modul, tilt, azimuth, dan shading raycast. Dispatch memaksimalkan self-consumption; ekspor ke grid tidak diizinkan. Cuaca memakai file TMYx per lokasi.</p>
+            <span class="text-xs font-sans uppercase tracking-wider text-bess font-semibold" data-i18n="pysamTitle">SIMULASI DETAIL</span>
+            <p class="text-xs text-slate-500 mt-0.5 max-w-2xl" data-i18n="pysamDesc">Simulasi detail panel surya dan baterai dengan data tiap lereng dari model 3D: jumlah modul, tilt, azimuth, dan shading raycast. Dispatch memaksimalkan self-consumption; ekspor ke grid tidak diizinkan. Cuaca memakai file TMYx per lokasi.</p>
           </div>
           <div class="flex gap-2 shrink-0">
             <button id="run-pysam-shading" class="px-3.5 py-2 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50 disabled:cursor-wait" data-i18n="shadingRun">Hitung Shading</button>
@@ -493,7 +499,7 @@
           <p id="pysam-dispatch" class="text-xs text-slate-500"></p>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
-              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamAnnualPv">Energi PV tahunan (PySAM)</div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamAnnualPv">Energi PV tahunan</div>
               <div class="mt-0.5 flex items-baseline gap-1.5">
                 <span id="pysam-pv" class="text-2xl font-sans font-bold text-slate-900 tabular-nums">0</span>
                 <span class="text-xs font-sans text-slate-500" data-i18n="kpiYieldUnit">MWh/thn</span>
@@ -567,7 +573,7 @@
           </div>
           <div class="grid sm:grid-cols-2 gap-4 mt-4">
             <div>
-              <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="pysamPerSlope">Per lereng (PySAM)</div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="pysamPerSlope">Per lereng</div>
               <div class="overflow-x-auto">
                 <table class="w-full text-xs font-sans">
                   <thead>
@@ -595,7 +601,17 @@
                 <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#BB1326] inline-block"></span><span data-i18n="pysamMonthImport">Impor</span></span>
                 <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-slate-400 inline-block"></span><span data-i18n="pysamMonthExport">Ekspor</span></span>
               </div>
-              <p class="text-[11px] font-sans text-slate-400 mt-3" data-i18n="pysamNote">Tiap lereng dijalankan sebagai sistem PVWatts sendiri dengan rasio DC/AC yang sama; shading raycast masuk lewat losses per lereng. Asumsi ekonomi adalah ilustrasi, bukan penawaran vendor.</p>
+              <p class="text-[11px] font-sans text-slate-400 mt-3" data-i18n="pysamNote">Tiap lereng dihitung sebagai sistem sendiri dengan rasio DC/AC yang sama; shading raycast masuk lewat losses per lereng. Asumsi ekonomi adalah ilustrasi, bukan penawaran vendor.</p>
+              <div class="mt-4 pt-3 border-t border-slate-200">
+                <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="reportTitle">Unduh Laporan</div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <button data-report="pdf" class="report-btn px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50">PDF</button>
+                  <button data-report="xlsx" class="report-btn px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50">Excel</button>
+                  <button data-report="docx" class="report-btn px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50">Word</button>
+                  <button data-report="csv" class="report-btn px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50" data-i18n="reportCsv">CSV (per jam)</button>
+                  <span id="report-status" class="text-xs font-sans text-slate-500"></span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -629,12 +645,41 @@
     </main>
   </div>
 
+  <!-- LOGIN MODAL -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+      <div class="flex items-start justify-between gap-2">
+        <h2 class="text-sm font-sans font-bold text-slate-900" data-i18n="authTitle">Masuk untuk simulasi detail</h2>
+        <button id="auth-close" class="text-slate-400 hover:text-slate-700 text-lg leading-none px-1" aria-label="Close">×</button>
+      </div>
+      <p id="auth-modal-note" class="text-xs font-sans text-slate-500 mt-1 hidden"></p>
+      <p id="auth-not-configured" class="hidden text-xs font-sans text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3" data-i18n="authNotConfigured">Login belum disiapkan. Hubungi pemilik situs.</p>
+      <div id="auth-form" class="mt-3 flex flex-col gap-2">
+        <input id="auth-email" type="email" autocomplete="email" placeholder="Email" class="text-sm font-sans border border-slate-300 rounded-lg px-3 py-2 w-full focus:outline-none focus:border-brand" />
+        <input id="auth-password" type="password" autocomplete="current-password" placeholder="Kata sandi" class="text-sm font-sans border border-slate-300 rounded-lg px-3 py-2 w-full focus:outline-none focus:border-brand" />
+        <p id="auth-error" class="hidden text-xs font-sans text-[#BB1326]"></p>
+        <button id="auth-signin" class="mt-1 px-3 py-2 rounded-lg bg-[#12579B] text-white text-sm font-sans font-semibold hover:bg-[#0e467d] transition disabled:opacity-50" data-i18n="authSignIn">Masuk</button>
+        <button id="auth-register" class="px-3 py-2 rounded-lg bg-white text-brand text-sm font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50" data-i18n="authRegister">Daftar akun baru</button>
+        <div class="flex items-center gap-2 my-1">
+          <span class="flex-1 border-t border-slate-200"></span>
+          <span class="text-xs font-sans text-slate-400" data-i18n="authOr">atau</span>
+          <span class="flex-1 border-t border-slate-200"></span>
+        </div>
+        <button id="auth-google" class="px-3 py-2 rounded-lg bg-white text-slate-700 text-sm font-sans font-semibold border border-slate-300 hover:border-slate-400 transition disabled:opacity-50" data-i18n="authGoogle">Masuk dengan Google</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK (compat builds, untuk login) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="js/firebase-config.js?v=1"></script>
   <!-- Modular JS Scripts -->
   <script src="js/energy-model.js?v=10"></script>
   <script src="js/solar.js?v=7"></script>
-  <script src="js/scene3d.js?v=9"></script>
+  <script src="js/scene3d.js?v=10"></script>
   <script src="js/shading.js?v=8"></script>
-  <script src="js/i18n.js?v=13"></script>
-  <script src="js/main.js?v=14"></script>
+  <script src="js/i18n.js?v=14"></script>
+  <script src="js/main.js?v=15"></script>
 </body>
 </html>

@@ -161,6 +161,18 @@ const Scene3D = {
     this.windArrowGroup.rotation.y = (-deg * Math.PI) / 180;
   },
 
+  snapshot() {
+    // PNG data URL of the current 3D view (for the PDF/Word report).
+    // Renders synchronously first so the drawing buffer is valid.
+    try {
+      if (!this.renderer) return null;
+      this.renderer.render(this.scene, this.camera);
+      return this.renderer.domElement.toDataURL('image/png');
+    } catch (e) {
+      return null;
+    }
+  },
+
   setCameraPreset(preset) {    if (preset === 'top') {
       this.camera.position.set(0, 42, 0.01);
     } else if (preset === 'side') {
