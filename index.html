@@ -43,7 +43,7 @@
       <div class="min-w-0">
         <div class="flex items-center gap-2">
           <span class="font-sans font-bold tracking-tight text-slate-900 text-base sm:text-lg truncate">Ardian Candra Pratama</span>
-          <span class="hidden md:inline-block shrink-0 text-[11px] font-sans uppercase px-2 py-0.5 rounded bg-brand text-white border border-brand">MSc KTH · Power Systems & PV/BESS</span>
+          <span class="hidden md:inline-block shrink-0 text-[11px] font-sans px-2 py-0.5 rounded bg-brand text-white border border-brand">3D Rooftop PV &amp; BESS Engineering Suite</span>
         </div>
         <p class="text-xs text-slate-500 truncate" data-i18n="subtitle">Geometri Atap Surya 3D, Simulasi Bayangan & Studio Dispatch BESS</p>
       </div>
@@ -349,12 +349,9 @@
 
       <!-- ROOF-SHAPE SHADING ANALYSIS (3D RAYCAST) -->
       <section class="bg-bgcard border border-slate-200 rounded-xl p-4">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <span class="text-xs font-sans uppercase tracking-wider text-bess font-semibold" data-i18n="shadingTitle">ANALISIS SHADING BENTUK ATAP (RAYCAST 3D)</span>
-            <p class="text-xs text-slate-500 mt-0.5 max-w-2xl" data-i18n="shadingDesc">Rugi shading dari geometri atap: lereng menaungi lereng, bayangan bubungan, dan obstacle. Dihitung dengan raycast dari tiap modul ke arah matahari pada 12 hari representatif (tanggal 15 tiap bulan, dari terbit hingga terbenam matahari).</p>
-          </div>
-          <button id="run-shading" class="px-3.5 py-2 rounded-lg bg-brand text-white text-xs font-sans font-semibold hover:bg-[#0e4a82] transition disabled:opacity-50 disabled:cursor-wait shrink-0" data-i18n="shadingRun">Hitung Shading</button>
+        <div>
+          <span class="text-xs font-sans uppercase tracking-wider text-bess font-semibold" data-i18n="shadingTitle">ANALISIS SHADING BENTUK ATAP (RAYCAST 3D)</span>
+          <p class="text-xs text-slate-500 mt-0.5 max-w-2xl" data-i18n="shadingDesc">Rugi shading dari geometri atap: lereng menaungi lereng, bayangan bubungan, dan obstacle. Dihitung dengan raycast dari tiap modul ke arah matahari pada 12 hari representatif (tanggal 15 tiap bulan, dari terbit hingga terbenam matahari).</p>
         </div>
         <p id="shading-status" class="text-xs font-sans text-slate-500 mt-3" data-i18n="shadingNotRun">Belum dihitung. Angka energi di atas belum termasuk rugi shading bentuk atap.</p>
         <div id="shading-results" class="hidden mt-3">
@@ -487,6 +484,6 @@
   <script src="js/scene3d.js?v=8"></script>
   <script src="js/shading.js?v=8"></script>
   <script src="js/i18n.js?v=8"></script>
-  <script src="js/main.js?v=8"></script>
+  <script src="js/main.js?v=9"></script>
 </body>
 </html>

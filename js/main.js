@@ -87,11 +87,7 @@ function slopeLabel(side) {
 function renderShadingUI() {
   const statusEl = document.getElementById('shading-status');
   const resultsEl = document.getElementById('shading-results');
-  const runBtn = document.getElementById('run-shading');
-  if (!statusEl || !resultsEl || !runBtn) return;
-
-  runBtn.disabled = shadingRunning || pysamRunning;
-  if (!shadingRunning) runBtn.textContent = I18n.t('shadingRun');
+  if (!statusEl || !resultsEl) return;
 
   if (shadingRunning) {
     resultsEl.classList.add('hidden');
@@ -161,7 +157,6 @@ function renderShadingUI() {
 async function runShadingAnalysis(onProgress) {
   if (shadingRunning) return;
   const statusEl = document.getElementById('shading-status');
-  const runBtn = document.getElementById('run-shading');
   shadingRunning = true;
   renderShadingUI();
   updateAll(); // make sure the scene matches the current inputs
@@ -170,7 +165,6 @@ async function runShadingAnalysis(onProgress) {
   try {
     const result = await ShadingAnalyzer.analyze(AppState, Scene3D, (frac) => {
       if (statusEl) statusEl.textContent = I18n.t('shadingRunning', { v: Math.round(frac * 100) });
-      if (runBtn) runBtn.textContent = I18n.t('shadingRunning', { v: Math.round(frac * 100) });
       if (onProgress) onProgress(frac);
     });
     if (!result) {
@@ -572,18 +566,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Roof-shape shading analysis (3D raycast)
-  document.getElementById('run-shading').addEventListener('click', () => {
-    runShadingAnalysis();
-  });
-
   // Detailed PySAM simulation (per-slope, via Cloud Run)
   document.getElementById('run-pysam').addEventListener('click', () => {
     runPysamSimulation();
   });
 
-  // Shading first, from the PySAM section: same analysis as the shading
-  // section's button, with progress shown in the PySAM status line.
+  // Shading first, from the PySAM section: the only shading button now.
   document.getElementById('run-pysam-shading').addEventListener('click', () => {
     const statusEl = document.getElementById('pysam-status');
     runShadingAnalysis((frac) => {
