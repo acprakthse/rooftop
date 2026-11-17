@@ -135,6 +135,9 @@ function authErrorMessage(code) {
     'auth/email-already-in-use': 'authErrInUse',
     'auth/weak-password': 'authErrWeakPw',
     'auth/popup-closed-by-user': 'authErrPopupClosed',
+    'auth/popup-blocked': 'authErrPopupBlocked',
+    'auth/unauthorized-domain': 'authErrUnauthorizedDomain',
+    'auth/operation-not-allowed': 'authErrNotAllowed',
     'auth/network-request-failed': 'authErrNetwork'
   };
   return I18n.t(map[code] || 'authErrorGeneric');
