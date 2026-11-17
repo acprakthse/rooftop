@@ -11,7 +11,6 @@ const Scene3D = {
   controls: null,
   rootGroup: null,
   panelsGroup: null,
-  windArrowGroup: null,
   sunLight: null,
   sunSphere: null,
   raycaster: new THREE.Raycaster(),
@@ -77,8 +76,8 @@ const Scene3D = {
     grid.position.y = 0.02;
     this.scene.add(grid);
 
-    // Compass arrows flat on the ground (north = -Z in this scene).
-    // North arrow: brand blue, fixed. Wind arrow: amber, rotates with wind direction.
+    // Compass arrow flat on the ground (north = -Z in this scene).
+    // North arrow: brand blue, fixed.
     const arrowShape = new THREE.Shape();
     arrowShape.moveTo(-0.3, -2.5);
     arrowShape.lineTo(0.3, -2.5);
@@ -94,13 +93,6 @@ const Scene3D = {
     northArrow.rotation.x = -Math.PI / 2; // tip (+Y) points to -Z = north
     northArrow.position.set(-16, 0.06, 20);
     this.scene.add(northArrow);
-
-    this.windArrowGroup = new THREE.Group();
-    this.windArrowGroup.position.set(-10, 0.06, 20);
-    const windArrow = new THREE.Mesh(arrowGeo, new THREE.MeshBasicMaterial({ color: 0xD97706 }));
-    windArrow.rotation.x = -Math.PI / 2;
-    this.windArrowGroup.add(windArrow);
-    this.scene.add(this.windArrowGroup);
 
     this.rootGroup = new THREE.Group();
     this.panelsGroup = new THREE.Group();
@@ -153,12 +145,6 @@ const Scene3D = {
       this.renderer.render(this.scene, this.camera);
     };
     animate();
-  },
-
-  // Wind arrow points where the wind blows toward (azimuth: 0 = north, 90 = east).
-  setWindDirection(deg) {
-    if (!this.windArrowGroup) return;
-    this.windArrowGroup.rotation.y = (-deg * Math.PI) / 180;
   },
 
   snapshot() {

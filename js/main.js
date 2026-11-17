@@ -21,7 +21,6 @@ const AppState = {
   bessKwh: 120,
   bessKw: 60,
   sunHour: 10.5,
-  windDirection: 90,
   currency: 'IDR'
 };
 
@@ -1426,8 +1425,6 @@ function updateAll() {
 
   // Update labels
   document.getElementById('val-orientation').textContent = formatCompass(AppState.orientation);
-  document.getElementById('val-wind').textContent = formatCompass(AppState.windDirection);
-  document.getElementById('legend-wind').textContent = I18n.t('windLegend', { deg: AppState.windDirection });
   // Icon rail tooltips follow the active language
   document.querySelectorAll('.rail-btn[data-section]').forEach((btn) => {
     const key = { 'section-01': 'railRoof', 'section-02': 'railPv', 'section-03': 'railBess', 'section-04': 'railLoad', 'section-05': 'railWeather' }[btn.dataset.section];
@@ -1457,7 +1454,6 @@ function updateAll() {
   // Rebuild 3D Scene
   const { activePanelsCount, rafterLength } = Scene3D.buildScene(AppState);
   const elevDeg = Scene3D.updateSunPosition(AppState.sunHour);
-  Scene3D.setWindDirection(AppState.windDirection);
 
   document.getElementById('hud-slope-info').textContent = I18n.t('rafterSlope', { v: rafterLength.toFixed(2) });
   document.getElementById('hud-sun-elevation').textContent = I18n.t('sunElevation', { v: elevDeg });
@@ -1523,7 +1519,6 @@ document.addEventListener('DOMContentLoaded', () => {
   bindInput('bess-kwh', 'bessKwh', parseInt);
   bindInput('bess-kw', 'bessKw', parseInt);
   bindInput('sun-hour', 'sunHour', parseFloat);
-  bindInput('wind-direction', 'windDirection', parseFloat);
 
   // Module Wp select: picking a standard module clears the custom upload.
   document.getElementById('panel-wp').addEventListener('change', (e) => {

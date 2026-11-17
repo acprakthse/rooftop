@@ -271,23 +271,6 @@
             <input id="bess-kw" type="range" min="5" max="500" step="5" value="60" class="w-full accent-[#12579B]" />
           </div>
 
-          <div>
-            <div class="flex justify-between text-xs mb-1">
-              <span class="text-slate-500" data-i18n="sunHour">Jam Surya (3D Sun Raycasting)</span>
-              <span id="val-sun-hour" class="font-sans text-brand">10:30</span>
-            </div>
-            <input id="sun-hour" type="range" min="6.5" max="17.5" step="0.25" value="10.5" class="w-full accent-[#F5E214]" />
-          </div>
-
-          <div>
-            <div class="flex justify-between text-xs mb-1">
-              <span class="text-slate-500" data-i18n="windLabel">Arah Angin</span>
-              <span id="val-wind" class="font-sans text-brand">90° · Timur</span>
-            </div>
-            <input id="wind-direction" type="range" min="0" max="355" step="5" value="90" class="w-full accent-[#12579B]" />
-            <p class="text-[11px] text-slate-500 mt-1" data-i18n="windHint">Arah tiupan angin, ditunjukkan panah di viewport 3D</p>
-          </div>
-
           <div class="pt-2 border-t border-slate-200">
             <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="bessUploadTitle">BESS custom (upload CSV)</div>
             <div class="flex flex-wrap gap-2">
@@ -422,7 +405,6 @@
           </span>
           <span class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-200 text-[11px] font-sans text-slate-600 flex items-center gap-2">
             <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#12579B] inline-block"></span><span data-i18n="northLegend">Utara</span></span>
-            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#D97706] inline-block"></span><span id="legend-wind">Angin 90°</span></span>
           </span>
         </div>
 
@@ -445,6 +427,13 @@
 
         <!-- Three.js Container -->
         <div id="three-canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+      </div>
+
+      <!-- SOLAR TIME CONTROL (below the 3D viewport) -->
+      <div class="bg-bgcard border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3">
+        <span class="text-xs text-slate-500 whitespace-nowrap" data-i18n="sunHour">Jam Surya (3D Sun Raycasting)</span>
+        <input id="sun-hour" type="range" min="6.5" max="17.5" step="0.25" value="10.5" class="flex-1 accent-[#F5E214]" />
+        <span id="val-sun-hour" class="text-xs font-sans text-brand tabular-nums w-10 text-right">10:30</span>
       </div>
 
       <!-- ROOF-SHAPE SHADING ANALYSIS (3D RAYCAST) -->
@@ -677,9 +666,9 @@
   <!-- Modular JS Scripts -->
   <script src="js/energy-model.js?v=10"></script>
   <script src="js/solar.js?v=7"></script>
-  <script src="js/scene3d.js?v=10"></script>
+  <script src="js/scene3d.js?v=11"></script>
   <script src="js/shading.js?v=8"></script>
-  <script src="js/i18n.js?v=15"></script>
-  <script src="js/main.js?v=16"></script>
+  <script src="js/i18n.js?v=16"></script>
+  <script src="js/main.js?v=17"></script>
 </body>
 </html>
