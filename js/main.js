@@ -87,15 +87,30 @@ function updateAuthUI() {
   const chip = document.getElementById('auth-user');
   const label = document.getElementById('auth-user-label');
   const quotaEl = document.getElementById('auth-quota');
+  const pill = document.getElementById('auth-quota-pill');
   if (!btn || !chip) return;
   if (authUser) {
     btn.classList.add('hidden');
     chip.classList.remove('hidden');
     chip.classList.add('flex');
     if (label) label.textContent = authUser.email || authUser.displayName || '';
-    if (quotaEl) quotaEl.textContent = authQuota
-      ? I18n.t('authQuotaLeft', { v: Math.max(0, authQuota.total - authQuota.used), t: authQuota.total })
-      : '';
+    if (quotaEl) {
+      if (authQuota) {
+        const left = Math.max(0, authQuota.total - authQuota.used);
+        quotaEl.textContent = I18n.t('authQuotaLeft', { v: left, t: authQuota.total });
+        if (pill) {
+          pill.classList.remove('hidden');
+          pill.classList.add('flex');
+          // Warna pill mengikuti sisa kuota: kuning saat masih banyak,
+          // oranye saat tinggal 1, merah saat habis.
+          pill.style.background = left === 0 ? '#BB1326' : left === 1 ? '#D97706' : '#F5E214';
+          pill.style.color = left <= 1 ? '#ffffff' : '#0f172a';
+        }
+      } else {
+        quotaEl.textContent = '';
+        if (pill) { pill.classList.add('hidden'); pill.classList.remove('flex'); }
+      }
+    }
   } else {
     btn.classList.remove('hidden');
     chip.classList.add('hidden');
