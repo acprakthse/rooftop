@@ -141,6 +141,7 @@ const I18n = {
       authLogin: 'Masuk',
       authLogout: 'Keluar',
       authTitle: 'Masuk untuk simulasi detail',
+      authPasswordPlaceholder: 'Kata sandi',
       authSignIn: 'Masuk',
       authRegister: 'Daftar akun baru',
       authGoogle: 'Masuk dengan Google',
@@ -369,6 +370,7 @@ const I18n = {
       authLogin: 'Sign in',
       authLogout: 'Sign out',
       authTitle: 'Sign in for detailed simulation',
+      authPasswordPlaceholder: 'Password',
       authSignIn: 'Sign in',
       authRegister: 'Create account',
       authGoogle: 'Sign in with Google',
@@ -482,6 +484,9 @@ const I18n = {
     document.documentElement.lang = this.lang;
     document.querySelectorAll('[data-i18n]').forEach((el) => {
       el.textContent = this.t(el.dataset.i18n);
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+      el.placeholder = this.t(el.dataset.i18nPlaceholder);
     });
     const label = document.getElementById('language-label');
     if (label) label.textContent = this.lang === 'id' ? 'Indonesia' : 'English';
