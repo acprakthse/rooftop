@@ -1,7 +1,7 @@
 // paket.js
-// Logika halaman paket (/paket): login Firebase + pilihan paket.
+// Logika halaman paket (/paket/): login Firebase + pilihan paket.
 // Tombol "Mulai gratis" mengarah ke /app; tombol "Pilih paket" ke
-// /bayar?paket=<id>. Kalau belum login, modal login terbuka dulu dan
+// /bayar/?paket=<id>. Kalau belum login, modal login terbuka dulu dan
 // setelah login berhasil browser lanjut ke tujuan yang tertunda
 // (disimpan di sessionStorage 'pendingAfterLogin').
 // Blok auth di sini disengaja mirip dengan landing.js (id elemen, kunci
@@ -122,8 +122,8 @@ async function refreshQuota() {
 
 function afterLoginTarget() {
   try {
-    return sessionStorage.getItem('pendingAfterLogin') || '/app';
-  } catch (e) { return '/app'; }
+    return sessionStorage.getItem('pendingAfterLogin') || '/app/';
+  } catch (e) { return '/app/'; }
 }
 
 function goAfterLogin() {
@@ -199,11 +199,11 @@ function initAuth() {
   const googleBtn = document.getElementById('auth-google');
   if (googleBtn) googleBtn.addEventListener('click', doGoogleAuth);
   document.querySelectorAll('.js-pkt-free').forEach((el) => {
-    el.addEventListener('click', () => goOrLogin('/app', 'authNeedLogin'));
+    el.addEventListener('click', () => goOrLogin('/app/', 'authNeedLogin'));
   });
   document.querySelectorAll('.js-pkt-buy').forEach((el) => {
     el.addEventListener('click', () => {
-      goOrLogin('/bayar?paket=' + el.getAttribute('data-package'), 'bayNeedLogin');
+      goOrLogin('/bayar/?paket=' + el.getAttribute('data-package'), 'bayNeedLogin');
     });
   });
   if (!authConfigured || typeof firebase === 'undefined') return;

@@ -1,6 +1,6 @@
 // landing.js
 // Logika landing page rooftop.ardiancandra.com: login Firebase + tombol
-// ajakan (CTA) yang mengarah ke halaman perhitungan (/app).
+// ajakan (CTA) yang mengarah ke halaman perhitungan (/app/).
 //
 // Alur: pengunjung membaca landing, klik CTA -> kalau belum login, modal
 // login terbuka; begitu login berhasil, browser pindah ke /app.
@@ -139,7 +139,7 @@ async function doEmailAuth(isRegister) {
     if (isRegister) await firebase.auth().createUserWithEmailAndPassword(email, password);
     else await firebase.auth().signInWithEmailAndPassword(email, password);
     closeAuthModal();
-    window.location.href = '/app';
+    window.location.href = '/app/';
   } catch (e) {
     showErr(authErrorMessage(e.code));
   } finally {
@@ -154,7 +154,7 @@ async function doGoogleAuth() {
     const provider = new firebase.auth.GoogleAuthProvider();
     await firebase.auth().signInWithPopup(provider);
     closeAuthModal();
-    window.location.href = '/app';
+    window.location.href = '/app/';
   } catch (e) {
     if (err) { err.textContent = authErrorMessage(e.code); err.classList.remove('hidden'); }
   } finally {
@@ -163,7 +163,7 @@ async function doGoogleAuth() {
 }
 
 function onCtaClick() {
-  if (authUser) window.location.href = '/app';
+  if (authUser) window.location.href = '/app/';
   else openAuthModal('authNeedLogin');
 }
 

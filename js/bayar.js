@@ -1,5 +1,5 @@
 // bayar.js
-// Logika halaman pembayaran (/bayar): ringkasan pesanan + Midtrans Snap.
+// Logika halaman pembayaran (/bayar/): ringkasan pesanan + Midtrans Snap.
 // Paket dibaca dari ?paket= (satuan/pack5/pack10). Harga di sini HANYA
 // untuk tampilan; harga yang ditagihkan selalu dari katalog backend.
 // Alur: klik Bayar -> POST /payment/create (dapat Snap token) ->
