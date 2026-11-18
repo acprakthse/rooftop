@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <base href="/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Monitoring · 3D Rooftop PV &amp; BESS Engineering Suite</title>
+  <meta name="description" content="Halaman monitoring pemilik: pengguna baru, simulasi, dan penjualan paket Rooftop." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bgdeep: '#FFFFFF',
+            bgcard: '#FFFFFF',
+            bgpanel: '#F2F4F5',
+            solar: '#F5E214',
+            bess: '#12579B',
+            brand: '#12579B'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="css/style.css?v=9" />
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico?v=1" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=1" />
+</head>
+<body class="bg-bgdeep text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+  <header class="border-b border-slate-200 bg-bgdeep sticky top-0 z-30 h-16 shrink-0">
+    <div class="h-full px-4 sm:px-6 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <a href="/" title="Kembali ke beranda" class="shrink-0"><img src="assets/sun-icon.png?v=1" alt="" class="w-10 h-10 rounded-xl shrink-0" onerror="this.style.display='none'" /></a>
+        <span class="hidden md:inline-block shrink-0 text-sm font-sans font-semibold px-2.5 py-1 rounded bg-brand text-white border border-brand">3D Rooftop PV &amp; BESS Engineering Suite</span>
+        <span class="text-sm font-sans font-bold text-slate-900">Monitoring</span>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <span id="auth-user" class="hidden items-center gap-2 text-xs font-sans">
+          <span id="auth-user-label" class="text-slate-700 font-semibold max-w-[180px] truncate"></span>
+          <button id="auth-logout" class="text-xs font-sans px-2.5 py-1.5 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-slate-400 transition">Keluar</button>
+        </span>
+        <button id="auth-btn" class="text-xs font-sans px-2.5 py-1.5 rounded bg-[#12579B] text-white font-semibold hover:bg-[#0e467d] transition">Masuk</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-6">
+
+    <!-- LOGIN GATE -->
+    <div id="login-gate" class="hidden bg-bgcard border border-slate-200 rounded-xl p-6 text-center">
+      <h1 class="text-lg font-sans font-bold text-slate-900">Monitoring Rooftop</h1>
+      <p class="text-sm font-sans text-slate-500 mt-1">Halaman ini hanya untuk pemilik situs. Masuk dengan akun Google pemilik untuk melihat pengguna, simulasi, dan penjualan.</p>
+      <button id="login-google" class="mt-4 px-4 py-2 rounded-lg bg-white text-slate-700 text-sm font-sans font-semibold border border-slate-300 hover:border-slate-400 transition">Masuk dengan Google</button>
+      <p id="login-error" class="hidden text-xs font-sans text-[#BB1326] mt-3"></p>
+    </div>
+
+    <!-- FORBIDDEN -->
+    <div id="forbidden" class="hidden bg-bgcard border border-amber-200 rounded-xl p-6 text-center">
+      <h1 class="text-lg font-sans font-bold text-slate-900">Bukan akun pemilik</h1>
+      <p class="text-sm font-sans text-slate-500 mt-1">Akun yang login bukan pemilik situs, jadi statistik tidak ditampilkan. Masuk dengan akun pemilik.</p>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="hidden">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 class="text-lg font-sans font-bold text-slate-900">Kinerja Rooftop</h1>
+          <p id="generated-at" class="text-xs font-sans text-slate-500 mt-0.5"></p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span id="pill-version" class="text-xs font-sans px-2.5 py-1 rounded-full bg-bgpanel text-slate-700 font-semibold"></span>
+          <span id="pill-payments" class="text-xs font-sans px-2.5 py-1 rounded-full font-semibold"></span>
+          <button id="refresh-btn" class="text-xs font-sans px-3 py-1.5 rounded-lg bg-[#F5E214] text-slate-900 font-semibold hover:bg-[#e3d11a] transition disabled:opacity-50">Muat ulang</button>
+        </div>
+      </div>
+      <p id="load-error" class="hidden text-xs font-sans text-[#BB1326] mt-3"></p>
+
+      <!-- KPI CARDS -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-5">
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3">
+          <div class="text-[11px] font-sans text-slate-500 uppercase">Total pengguna</div>
+          <div id="kpi-users" class="text-2xl font-sans font-bold text-slate-900 tabular-nums mt-1">-</div>
+          <div id="kpi-users-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+        </div>
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3">
+          <div class="text-[11px] font-sans text-slate-500 uppercase">User baru · 7 hari</div>
+          <div id="kpi-new7" class="text-2xl font-sans font-bold text-brand tabular-nums mt-1">-</div>
+          <div id="kpi-new7-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+        </div>
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3">
+          <div class="text-[11px] font-sans text-slate-500 uppercase">Total simulasi</div>
+          <div id="kpi-sims" class="text-2xl font-sans font-bold text-slate-900 tabular-nums mt-1">-</div>
+          <div id="kpi-sims-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+        </div>
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3">
+          <div class="text-[11px] font-sans text-slate-500 uppercase">Pendapatan</div>
+          <div id="kpi-revenue" class="text-2xl font-sans font-bold text-[#16A34A] tabular-nums mt-1">-</div>
+          <div id="kpi-revenue-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+        </div>
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3">
+          <div class="text-[11px] font-sans text-slate-500 uppercase">Pesanan dibayar</div>
+          <div id="kpi-paid" class="text-2xl font-sans font-bold text-slate-900 tabular-nums mt-1">-</div>
+          <div id="kpi-paid-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+        </div>
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3">
+          <div class="text-[11px] font-sans text-slate-500 uppercase">Kuota habis</div>
+          <div id="kpi-exhausted" class="text-2xl font-sans font-bold text-[#BB1326] tabular-nums mt-1">-</div>
+          <div class="text-[11px] font-sans text-slate-500 mt-0.5">Calon pembeli paket</div>
+        </div>
+      </div>
+
+      <!-- CHARTS -->
+      <div class="grid sm:grid-cols-2 gap-4 mt-4">
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-4">
+          <div class="text-[11px] font-sans text-slate-500 uppercase mb-3">User baru per hari · 14 hari</div>
+          <div id="chart-users" class="flex items-end gap-1 h-28"></div>
+          <div id="chart-users-labels" class="flex gap-1 mt-1"></div>
+        </div>
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-4">
+          <div class="text-[11px] font-sans text-slate-500 uppercase mb-3">Pendapatan per hari · 14 hari</div>
+          <div id="chart-revenue" class="flex items-end gap-1 h-28"></div>
+          <div id="chart-revenue-labels" class="flex gap-1 mt-1"></div>
+        </div>
+      </div>
+
+      <!-- FUNNEL -->
+      <div class="bg-bgcard border border-slate-200 rounded-xl p-4 mt-4">
+        <div class="text-[11px] font-sans text-slate-500 uppercase mb-3">Funnel pengguna</div>
+        <div id="funnel" class="flex flex-wrap items-center gap-2 text-xs font-sans"></div>
+        <p class="text-[11px] font-sans text-slate-400 mt-2">Dari yang terdaftar, berapa yang pernah simulasi, berapa yang kuotanya habis, dan berapa yang sudah berbayar.</p>
+      </div>
+
+      <!-- SALES BREAKDOWN -->
+      <div class="grid sm:grid-cols-2 gap-4 mt-4">
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-4">
+          <div class="text-[11px] font-sans text-slate-500 uppercase mb-2">Penjualan per paket</div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs font-sans">
+              <thead>
+                <tr class="text-left text-slate-400 border-b border-slate-200">
+                  <th class="py-1 pr-2 font-medium">Paket</th>
+                  <th class="py-1 pr-2 font-medium text-right">Pesanan</th>
+                  <th class="py-1 pr-2 font-medium text-right">Dibayar</th>
+                  <th class="py-1 font-medium text-right">Pendapatan</th>
+                </tr>
+              </thead>
+              <tbody id="table-packages"></tbody>
+            </table>
+          </div>
+          <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+            <div class="bg-bgpanel rounded-lg py-2">
+              <div id="stat-pending" class="text-base font-sans font-bold text-slate-900 tabular-nums">-</div>
+              <div class="text-[11px] font-sans text-slate-500">Menunggu bayar</div>
+            </div>
+            <div class="bg-bgpanel rounded-lg py-2">
+              <div id="stat-failed" class="text-base font-sans font-bold text-slate-900 tabular-nums">-</div>
+              <div class="text-[11px] font-sans text-slate-500">Gagal/kedaluwarsa</div>
+            </div>
+            <div class="bg-bgpanel rounded-lg py-2">
+              <div id="stat-paid-users" class="text-base font-sans font-bold text-slate-900 tabular-nums">-</div>
+              <div class="text-[11px] font-sans text-slate-500">User berbayar</div>
+            </div>
+          </div>
+        </div>
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-4">
+          <div class="text-[11px] font-sans text-slate-500 uppercase mb-2">Penjualan per metode</div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs font-sans">
+              <thead>
+                <tr class="text-left text-slate-400 border-b border-slate-200">
+                  <th class="py-1 pr-2 font-medium">Metode</th>
+                  <th class="py-1 pr-2 font-medium text-right">Pesanan</th>
+                  <th class="py-1 font-medium text-right">Dibayar</th>
+                </tr>
+              </thead>
+              <tbody id="table-methods"></tbody>
+            </table>
+          </div>
+          <div class="text-[11px] font-sans text-slate-500 uppercase mt-4 mb-2">Distribusi kuota free (dipakai dari 3)</div>
+          <div id="quota-dist" class="flex flex-wrap gap-2 text-xs font-sans"></div>
+        </div>
+      </div>
+
+      <!-- RECENT TABLES -->
+      <div class="grid sm:grid-cols-2 gap-4 mt-4">
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-4">
+          <div class="text-[11px] font-sans text-slate-500 uppercase mb-2">Pengguna terbaru</div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs font-sans">
+              <thead>
+                <tr class="text-left text-slate-400 border-b border-slate-200">
+                  <th class="py-1 pr-2 font-medium">Email</th>
+                  <th class="py-1 pr-2 font-medium text-right">Paket</th>
+                  <th class="py-1 pr-2 font-medium text-right">Simulasi</th>
+                  <th class="py-1 font-medium text-right">Daftar</th>
+                </tr>
+              </thead>
+              <tbody id="table-users"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-4">
+          <div class="text-[11px] font-sans text-slate-500 uppercase mb-2">Pembelian terbaru</div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs font-sans">
+              <thead>
+                <tr class="text-left text-slate-400 border-b border-slate-200">
+                  <th class="py-1 pr-2 font-medium">Order</th>
+                  <th class="py-1 pr-2 font-medium">Paket</th>
+                  <th class="py-1 pr-2 font-medium text-right">Harga</th>
+                  <th class="py-1 font-medium text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody id="table-purchases"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-[11px] font-sans text-slate-400 mt-4">Data diambil langsung dari Firestore (koleksi users + purchases); akun pemilik tidak dihitung sebagai pengguna. Kunjungan halaman (traffic) belum dilacak karena situs belum memakai analytics. Detail transaksi ada di <a class="text-brand hover:underline" href="https://dashboard.midtrans.com/" target="_blank" rel="noopener">dashboard Midtrans</a> dan data mentah di <a class="text-brand hover:underline" href="https://console.firebase.google.com/project/plnyes/firestore/databases/rooftop/data" target="_blank" rel="noopener">Firebase console</a>.</p>
+    </div>
+  </main>
+
+  <footer class="border-t border-slate-200 mt-6">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-2">
+      <p class="text-xs font-sans text-slate-500">Monitoring Rooftop · hanya pemilik situs</p>
+      <a href="/" class="text-xs font-sans text-brand hover:underline">Kembali ke beranda</a>
+    </div>
+  </footer>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="js/firebase-config.js?v=3"></script>
+  <script>
+    const API_URL = 'https://rooftop-api-451921864170.asia-southeast2.run.app';
+    const $ = (id) => document.getElementById(id);
+    const fmtRp = (v) => 'Rp ' + Number(v || 0).toLocaleString('id-ID');
+    const fmtNum = (v) => Number(v || 0).toLocaleString('id-ID');
+
+    firebase.initializeApp(FIREBASE_CONFIG);
+
+    function show(el, on) { el.classList.toggle('hidden', !on); }
+
+    function barChart(elId, labelsId, series, valueKey, color) {
+      const el = $(elId), labels = $(labelsId);
+      el.innerHTML = ''; labels.innerHTML = '';
+      const max = Math.max(1, ...series.map((d) => d[valueKey]));
+      series.forEach((d, i) => {
+        const h = d[valueKey] > 0 ? Math.max(6, Math.round((d[valueKey] / max) * 100)) : 2;
+        const bar = document.createElement('div');
+        bar.className = 'flex-1 rounded-t-sm min-w-0';
+        bar.style.height = h + '%';
+        bar.style.background = color;
+        bar.title = d.label + ': ' + (valueKey === 'revenue' ? fmtRp(d[valueKey]) : fmtNum(d[valueKey]));
+        el.appendChild(bar);
+        const lab = document.createElement('div');
+        lab.className = 'flex-1 text-center text-[10px] font-sans text-slate-400 truncate';
+        lab.textContent = (i % 3 === 0 || i === series.length - 1) ? d.label : '';
+        labels.appendChild(lab);
+      });
+    }
+
+    function render(stats) {
+      const u = stats.users, s = stats.sales, f = stats.funnel, sys = stats.system;
+      $('generated-at').textContent = 'Data per ' + sys.generated_at + ' · diperbarui tiap muat ulang';
+      $('pill-version').textContent = 'Backend v' + sys.version;
+      const pill = $('pill-payments');
+      if (!sys.payments_enabled) {
+        pill.textContent = 'Pembayaran belum aktif';
+        pill.style.background = '#FEE2E2'; pill.style.color = '#991B1B';
+      } else if (sys.midtrans_production) {
+        pill.textContent = 'Pembayaran aktif · Produksi';
+        pill.style.background = '#DCFCE7'; pill.style.color = '#166534';
+      } else {
+        pill.textContent = 'Pembayaran aktif · Sandbox (uji)';
+        pill.style.background = '#FEF9C3'; pill.style.color = '#854D0E';
+      }
+
+      $('kpi-users').textContent = fmtNum(u.total);
+      $('kpi-users-sub').textContent = 'Hari ini +' + fmtNum(u.new_today) + ' · 30 hari +' + fmtNum(u.new_30d);
+      $('kpi-new7').textContent = '+' + fmtNum(u.new_7d);
+      $('kpi-new7-sub').textContent = 'Pendaftar 7 hari terakhir';
+      $('kpi-sims').textContent = fmtNum(u.total_simulations);
+      $('kpi-sims-sub').textContent = fmtNum(u.active) + ' user pernah simulasi';
+      $('kpi-revenue').textContent = fmtRp(s.revenue_total);
+      $('kpi-revenue-sub').textContent = '7 hari ' + fmtRp(s.revenue_7d) + ' · 30 hari ' + fmtRp(s.revenue_30d);
+      $('kpi-paid').textContent = fmtNum(s.paid_orders);
+      $('kpi-paid-sub').textContent = 'dari ' + fmtNum(s.orders) + ' pesanan';
+      $('kpi-exhausted').textContent = fmtNum(u.exhausted);
+
+      barChart('chart-users', 'chart-users-labels', u.daily_new, 'count', '#12579B');
+      barChart('chart-revenue', 'chart-revenue-labels', s.daily_revenue, 'revenue', '#16A34A');
+
+      const pct = (n) => f.registered > 0 ? Math.round((n / f.registered) * 100) + '%' : '-';
+      $('funnel').innerHTML = [
+        ['Terdaftar', f.registered, '100%'],
+        ['Pernah simulasi', f.active, pct(f.active)],
+        ['Kuota habis', f.exhausted, pct(f.exhausted)],
+        ['Berbayar', f.paid, pct(f.paid)],
+      ].map(([label, n, p], i) => (
+        (i > 0 ? '<span class="text-slate-300 font-bold">→</span>' : '') +
+        '<div class="bg-bgpanel rounded-lg px-3 py-2 text-center">' +
+        '<div class="font-bold text-slate-900 tabular-nums">' + fmtNum(n) + ' <span class="text-slate-400 font-semibold">(' + p + ')</span></div>' +
+        '<div class="text-slate-500">' + label + '</div></div>'
+      )).join('');
+
+      $('table-packages').innerHTML = s.by_package.map((b) =>
+        '<tr class="border-b border-slate-100"><td class="py-1.5 pr-2">' + b.label +
+        '</td><td class="py-1.5 pr-2 text-right tabular-nums">' + fmtNum(b.orders) +
+        '</td><td class="py-1.5 pr-2 text-right tabular-nums">' + fmtNum(b.paid) +
+        '</td><td class="py-1.5 text-right tabular-nums font-semibold">' + fmtRp(b.revenue) + '</td></tr>'
+      ).join('');
+      $('table-methods').innerHTML = s.by_method.map((b) =>
+        '<tr class="border-b border-slate-100"><td class="py-1.5 pr-2">' + b.label +
+        '</td><td class="py-1.5 pr-2 text-right tabular-nums">' + fmtNum(b.orders) +
+        '</td><td class="py-1.5 text-right tabular-nums">' + fmtNum(b.paid) + '</td></tr>'
+      ).join('');
+      $('stat-pending').textContent = fmtNum(s.pending_orders);
+      $('stat-failed').textContent = fmtNum(s.failed_orders);
+      $('stat-paid-users').textContent = fmtNum(u.paid);
+      $('quota-dist').innerHTML = [['0', u.quota_dist['0']], ['1', u.quota_dist['1']], ['2', u.quota_dist['2']], ['3 (habis)', u.quota_dist['3+']]].map(([k, v]) =>
+        '<span class="bg-bgpanel rounded-lg px-2.5 py-1.5"><b class="tabular-nums">' + fmtNum(v) + '</b> user pakai ' + k + '</span>'
+      ).join('');
+
+      $('table-users').innerHTML = u.recent.length ? u.recent.map((r) =>
+        '<tr class="border-b border-slate-100"><td class="py-1.5 pr-2 truncate max-w-[150px]" title="' + r.email + '">' + r.email +
+        '</td><td class="py-1.5 pr-2 text-right">' + (r.plan === 'paid' ? 'Berbayar' : 'Free') +
+        '</td><td class="py-1.5 pr-2 text-right tabular-nums">' + r.used + '/' + r.total +
+        '</td><td class="py-1.5 text-right tabular-nums">' + r.created + '</td></tr>'
+      ).join('') : '<tr><td class="py-2 text-slate-400" colspan="4">Belum ada pengguna.</td></tr>';
+
+      const statusLabel = { paid: 'Dibayar', pending: 'Menunggu', expire: 'Kedaluwarsa', cancel: 'Batal', deny: 'Ditolak', failure: 'Gagal' };
+      $('table-purchases').innerHTML = s.recent.length ? s.recent.map((r) =>
+        '<tr class="border-b border-slate-100"><td class="py-1.5 pr-2 truncate max-w-[110px]" title="' + r.order_id + '">' + r.order_id +
+        '</td><td class="py-1.5 pr-2">' + r.package +
+        '</td><td class="py-1.5 pr-2 text-right tabular-nums">' + fmtRp(r.price_rp) +
+        '</td><td class="py-1.5 text-right">' + (statusLabel[r.status] || r.status) + '</td></tr>'
+      ).join('') : '<tr><td class="py-2 text-slate-400" colspan="4">Belum ada pesanan.</td></tr>';
+    }
+
+    async function loadStats() {
+      const btn = $('refresh-btn');
+      btn.disabled = true;
+      show($('load-error'), false);
+      try {
+        const user = firebase.auth().currentUser;
+        const token = await user.getIdToken();
+        const res = await fetch(API_URL + '/admin/stats', { headers: { Authorization: 'Bearer ' + token } });
+        if (res.status === 403) {
+          show($('dashboard'), false); show($('forbidden'), true); return;
+        }
+        if (!res.ok) throw new Error('Server menjawab ' + res.status);
+        render(await res.json());
+      } catch (e) {
+        const err = $('load-error');
+        err.textContent = 'Gagal memuat statistik: ' + e.message + '. Coba muat ulang.';
+        show(err, true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function signInGoogle() {
+      const err = $('login-error');
+      show(err, false);
+      try {
+        await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());
+      } catch (e) {
+        err.textContent = 'Login gagal: ' + (e.message || e.code);
+        show(err, true);
+      }
+    }
+
+    $('login-google').addEventListener('click', signInGoogle);
+    $('auth-btn').addEventListener('click', signInGoogle);
+    $('auth-logout').addEventListener('click', () => firebase.auth().signOut());
+    $('refresh-btn').addEventListener('click', loadStats);
+
+    firebase.auth().onAuthStateChanged((user) => {
+      show($('login-gate'), !user);
+      show($('auth-btn'), !user);
+      const wrap = $('auth-user');
+      wrap.classList.toggle('hidden', !user);
+      wrap.classList.toggle('flex', !!user);
+      if (user) {
+        $('auth-user-label').textContent = user.email || '';
+        show($('dashboard'), true);
+        show($('forbidden'), false);
+        loadStats();
+      } else {
+        show($('dashboard'), false);
+        show($('forbidden'), false);
+      }
+    });
+  </script>
+</body>
+</html>
