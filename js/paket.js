@@ -167,7 +167,7 @@ async function doGoogleAuth() {
 
 // Harga per simulasi (teks dikelola JS karena memakai placeholder {v}).
 function updatePerSim() {
-  const map = { 'pkt-persim-satuan': '25.000', 'pkt-persim-pack5': '20.000', 'pkt-persim-pack10': '19.000' };
+  const map = { 'pkt-persim-satuan': '10.000', 'pkt-persim-pack5': '10.000', 'pkt-persim-pack10': '7.500' };
   Object.keys(map).forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.textContent = I18n.t('pktPerSim', { v: map[id] });

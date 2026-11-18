@@ -12,10 +12,26 @@
 const API_URL = 'https://rooftop-api-451921864170.asia-southeast2.run.app';
 // Tampilan saja; backend yang menentukan harga sebenarnya.
 const PACKAGES = {
-  satuan: { nameKey: 'pktSingleName', sims: 1, price: 25000 },
-  pack5: { nameKey: 'pktPack5Name', sims: 5, price: 100000 },
-  pack10: { nameKey: 'pktPack10Name', sims: 10, price: 190000 }
+  satuan: { nameKey: 'pktSingleName', sims: 1, price: 10000 },
+  pack5: { nameKey: 'pktPack5Name', sims: 5, price: 50000 },
+  pack10: { nameKey: 'pktPack10Name', sims: 10, price: 75000 }
 };
+// Biaya pembayaran per metode (tampilan saja; backend yang menentukan
+// total yang ditagihkan). QRIS gratis, VA flat Rp 4.500, GoPay 2%.
+const PAYMENT_FEES = {
+  qris: { kind: 'flat', value: 0 },
+  va: { kind: 'flat', value: 4500 },
+  gopay: { kind: 'percent', value: 0.02 }
+};
+function paymentFee(method, price) {
+  const f = PAYMENT_FEES[method] || PAYMENT_FEES.qris;
+  return f.kind === 'percent' ? Math.round(price * f.value) : f.value;
+}
+function feeLabel(method, price) {
+  const fee = paymentFee(method, price);
+  if (fee === 0) return I18n.t('bayFeeFree');
+  return '+' + fmtRp(fee) + (PAYMENT_FEES[method].kind === 'percent' ? ' (2%)' : '');
+}
 let authUser = null;      // firebase.User | null
 let authIdToken = null;   // string | null
 let authQuota = null;     // {used, total, plan, exempt} | null
@@ -184,6 +200,15 @@ function renderOrder() {
   if (simsEl) simsEl.textContent = String(pkg.sims);
   const priceEl = document.getElementById('bay-package-price');
   if (priceEl) priceEl.textContent = fmtRp(pkg.price);
+  const fee = paymentFee(selectedMethod, pkg.price);
+  const feeEl = document.getElementById('bay-fee');
+  if (feeEl) feeEl.textContent = fee === 0 ? I18n.t('bayFeeFree') : fmtRp(fee);
+  const totalEl = document.getElementById('bay-total');
+  if (totalEl) totalEl.textContent = fmtRp(pkg.price + fee);
+  ['qris', 'va', 'gopay'].forEach((m) => {
+    const el = document.getElementById('bay-fee-' + m);
+    if (el) el.textContent = feeLabel(m, pkg.price);
+  });
   const emailEl = document.getElementById('bay-email');
   if (emailEl) emailEl.textContent = authUser ? (authUser.email || authUser.displayName || '-') : '-';
   const quotaEl = document.getElementById('bay-quota');
@@ -209,6 +234,7 @@ function setPayBusy(busy) {
 
 function selectMethod(method) {
   selectedMethod = method;
+  renderOrder();
   document.querySelectorAll('.js-bay-method').forEach((el) => {
     const on = el.getAttribute('data-method') === method;
     el.setAttribute('aria-checked', on ? 'true' : 'false');
