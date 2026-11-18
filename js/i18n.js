@@ -338,6 +338,7 @@ const I18n = {
       landFeat6Body: 'CAPEX terperinci, NPV, IRR, payback, LCOE, dan rasio manfaat-biaya, semua dalam rupiah.',
       landFreeTitle: 'Mulai gratis',
       landFreeBody: 'Setiap akun mendapat 3 simulasi detail gratis. Coba dulu, putuskan setelah melihat angkanya.',
+      landPkgTitle: 'Paket simulasi',
       landFooterNote: 'Dibuat oleh Ardian Candra Pratama'
     },
     en: {
@@ -668,6 +669,7 @@ const I18n = {
       landFeat6Body: 'Detailed CAPEX, NPV, IRR, payback, LCOE, and benefit-cost ratio, all in rupiah.',
       landFreeTitle: 'Start free',
       landFreeBody: 'Every account gets 3 free detailed simulations. Try it first, decide after seeing the numbers.',
+      landPkgTitle: 'Simulation packages',
       landFooterNote: 'Built by Ardian Candra Pratama'
     }
   },
