@@ -255,7 +255,29 @@ function initAuth() {
 // ---- User-supplied input data (uploads + manual load) ----
 // Load profile: auto (annual load derived from kWp, commercial shape),
 // manual (annual kWh + shape preset), or csv (uploaded 8760 hourly kW).
-let loadInput = { mode: 'auto', annualKwh: null, shape: 'commercial', csv: null, error: null };
+let loadInput = { mode: 'auto', annualKwh: null, shape: 'commercial', csv: null, error: null, va: 2200, billMonthly: null, tariff: 1444.7, ppj: 0 };
+
+// Tarif PLN rumah tangga Triwulan IV 2026 (Rp/kWh, berlaku Okt-Des 2026):
+// 450 VA subsidi 415; 900 VA RTM 1352; 1300/2200 VA 1444,7; >=3500 VA 1699,53.
+// Pengguna bisa mengubah tarifnya sendiri (mis. pelanggan bersubsidi 900 VA
+// atau golongan bisnis).
+function plnTariffForVa(va) {
+  if (va <= 450) return 415;
+  if (va <= 900) return 1352;
+  if (va <= 2200) return 1444.7;
+  return 1699.53;
+}
+// Faktor puncak (puncak/rata-rata) tiap bentuk profil, diukur persis dari
+// app/load_synth.py backend (seed 42, 8760 jam). Dipakai untuk memeriksa
+// apakah puncak profil melebihi daya tersambung.
+const LOAD_PEAK_FACTOR = { commercial: 2.004, office: 3.257, residential: 2.118, flat: 1.0 };
+
+// Konsumsi tahunan dari tagihan PLN: kWh/bln = tagihan / (tarif x (1+PPJ)).
+function billAnnualKwh() {
+  if (!loadInput.billMonthly || !loadInput.tariff || loadInput.tariff <= 0) return null;
+  const ppj = Math.max(0, loadInput.ppj || 0) / 100;
+  return (loadInput.billMonthly / (loadInput.tariff * (1 + ppj))) * 12;
+}
 // Weather: tmy (built-in TMYx per location) or epw (uploaded .epw file).
 // prevLocation remembers the TMYx location the EPW replaced, so the API
 // still gets a valid location code alongside the uploaded file.
@@ -445,8 +467,8 @@ function buildPysamPayload() {
     annual_load_kwh: Math.round(annualLoadKwh),
     include_economics: true
   };
-  // Manual load: the API builds the 8760h profile from annual kWh + shape.
-  if (loadInput.mode === 'manual') payload.load_profile_type = loadInput.shape;
+  // Manual load / PLN bill: the API builds the 8760h profile from annual kWh + shape.
+  if (loadInput.mode === 'manual' || loadInput.mode === 'bill') payload.load_profile_type = loadInput.shape;
   // Uploaded load profile: the full 8760 hourly values go to the API.
   if (loadInput.mode === 'csv' && loadInput.csv) payload.load_profile_kw = loadInput.csv.hours;
   // Custom BESS: efficiency + SoC window from the uploaded spec. DoD maps
@@ -748,6 +770,7 @@ function readFileAsText(file) {
 // total, or the automatic value derived from installed kWp.
 function effectiveAnnualLoadKwh() {
   if (loadInput.mode === 'manual' && loadInput.annualKwh) return loadInput.annualKwh;
+  if (loadInput.mode === 'bill') { const b = billAnnualKwh(); if (b) return b; }
   if (loadInput.mode === 'csv' && loadInput.csv) return loadInput.csv.totalKwh;
   return lastMetrics ? EnergyModel.annualLoadKwh(AppState, lastMetrics) : 0;
 }
@@ -755,22 +778,52 @@ function effectiveAnnualLoadKwh() {
 function renderLoadUI() {
   const statusEl = document.getElementById('load-status');
   const manualEl = document.getElementById('load-manual');
+  const shapeEl = document.getElementById('load-shape-block');
+  const billEl = document.getElementById('load-bill');
   const csvEl = document.getElementById('load-csv');
   const clearBtn = document.getElementById('load-clear');
+  const warnEl = document.getElementById('load-warn');
   if (manualEl) manualEl.classList.toggle('hidden', loadInput.mode !== 'manual');
+  if (shapeEl) shapeEl.classList.toggle('hidden', loadInput.mode !== 'manual' && loadInput.mode !== 'bill');
+  if (billEl) billEl.classList.toggle('hidden', loadInput.mode !== 'bill');
   if (csvEl) csvEl.classList.toggle('hidden', loadInput.mode !== 'csv');
   if (clearBtn) clearBtn.classList.toggle('hidden', !loadInput.csv);
+  if (warnEl) warnEl.classList.add('hidden');
   if (!statusEl) return;
   if (loadInput.error) {
     statusEl.textContent = loadInput.error;
     return;
   }
+  const shapeKey = { commercial: 'loadShapeCommercial', office: 'loadShapeOffice', residential: 'loadShapeResidential', flat: 'loadShapeFlat' }[loadInput.shape] || 'loadShapeCommercial';
   if (loadInput.mode === 'manual') {
-    const shapeKey = { commercial: 'loadShapeCommercial', office: 'loadShapeOffice', residential: 'loadShapeResidential', flat: 'loadShapeFlat' }[loadInput.shape] || 'loadShapeCommercial';
     statusEl.textContent = I18n.t('loadStatusManual', {
       v: (effectiveAnnualLoadKwh() / 1000).toFixed(1),
       shape: I18n.t(shapeKey)
     });
+  } else if (loadInput.mode === 'bill') {
+    const annual = billAnnualKwh();
+    if (!annual) {
+      statusEl.textContent = I18n.t('loadStatusBillMissing');
+    } else {
+      statusEl.textContent = I18n.t('loadStatusBill', {
+        bill: Math.round(loadInput.billMonthly).toLocaleString('id-ID'),
+        m: Math.round(annual / 12).toLocaleString('id-ID'),
+        v: (annual / 1000).toFixed(1),
+        va: loadInput.va.toLocaleString('id-ID'),
+        shape: I18n.t(shapeKey)
+      });
+      // Periksa puncak profil terhadap daya tersambung (faktor daya 0,85).
+      const peakKw = (annual / 8760) * (LOAD_PEAK_FACTOR[loadInput.shape] || 2.004);
+      const peakKva = peakKw / 0.85;
+      if (warnEl && peakKva > loadInput.va / 1000) {
+        warnEl.textContent = I18n.t('loadPeakWarn', {
+          p: peakKw.toFixed(1),
+          kva: peakKva.toFixed(1),
+          va: loadInput.va.toLocaleString('id-ID')
+        });
+        warnEl.classList.remove('hidden');
+      }
+    }
   } else if (loadInput.mode === 'csv') {
     statusEl.textContent = loadInput.csv
       ? I18n.t('loadStatusCsv', { name: loadInput.csv.name, v: (loadInput.csv.totalKwh / 1000).toFixed(1), p: loadInput.csv.peakKw.toFixed(1) })
@@ -1626,6 +1679,28 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('load-shape').addEventListener('change', (e) => {
     loadInput.shape = e.target.value;
+    updateAll();
+  });
+  document.getElementById('load-va').addEventListener('change', (e) => {
+    loadInput.va = parseInt(e.target.value, 10) || 2200;
+    // Tarif otomatis mengikuti daya; pengguna tetap bisa mengubahnya.
+    loadInput.tariff = plnTariffForVa(loadInput.va);
+    document.getElementById('load-tariff').value = loadInput.tariff;
+    updateAll();
+  });
+  document.getElementById('load-bill-amount').addEventListener('input', (e) => {
+    const v = parseFloat(e.target.value);
+    loadInput.billMonthly = isNaN(v) || v <= 0 ? null : v;
+    updateAll();
+  });
+  document.getElementById('load-tariff').addEventListener('input', (e) => {
+    const v = parseFloat(e.target.value);
+    loadInput.tariff = isNaN(v) || v <= 0 ? null : v;
+    updateAll();
+  });
+  document.getElementById('load-ppj').addEventListener('input', (e) => {
+    const v = parseFloat(e.target.value);
+    loadInput.ppj = isNaN(v) || v < 0 ? 0 : v;
     updateAll();
   });
   document.getElementById('load-file').addEventListener('change', (e) => {

@@ -296,7 +296,7 @@
       <section id="section-04" class="p-4 border-b border-slate-200 panel-hidden">
         <div class="flex items-center justify-between mb-3">
           <span class="text-[11px] font-sans uppercase tracking-wider text-slate-500 font-semibold" data-i18n="sec04panel">04 · PROFIL BEBAN</span>
-          <span class="text-[11px] font-sans text-slate-400">Manual / CSV</span>
+          <span class="text-[11px] font-sans text-slate-400">Manual / Tagihan / CSV</span>
         </div>
 
         <div class="space-y-3">
@@ -305,6 +305,7 @@
             <select id="load-mode" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
               <option value="auto" data-i18n="loadModeAuto">Otomatis (dari kWp terpasang)</option>
               <option value="manual" data-i18n="loadModeManual">Manual sederhana</option>
+              <option value="bill" data-i18n="loadModeBill">Tagihan PLN (dari daya VA)</option>
               <option value="csv" data-i18n="loadModeCsv">Upload CSV (8760 jam)</option>
             </select>
           </div>
@@ -314,15 +315,55 @@
               <label class="block text-xs text-slate-600 mb-1" data-i18n="loadAnnualLabel">Konsumsi tahunan (kWh/thn)</label>
               <input id="load-annual" type="number" min="1000" step="1000" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800" />
             </div>
+          </div>
+
+          <div id="load-shape-block" class="hidden">
+            <label class="block text-xs text-slate-600 mb-1" data-i18n="loadShapeLabel">Bentuk profil harian</label>
+            <select id="load-shape" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
+              <option value="commercial" data-i18n="loadShapeCommercial">Komersial (siang + malam)</option>
+              <option value="office" data-i18n="loadShapeOffice">Perkantoran (hari kerja, siang)</option>
+              <option value="residential" data-i18n="loadShapeResidential">Residensial (pagi + malam)</option>
+              <option value="flat" data-i18n="loadShapeFlat">Datar (beban konstan)</option>
+            </select>
+          </div>
+
+          <div id="load-bill" class="space-y-3 hidden">
             <div>
-              <label class="block text-xs text-slate-600 mb-1" data-i18n="loadShapeLabel">Bentuk profil harian</label>
-              <select id="load-shape" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
-                <option value="commercial" data-i18n="loadShapeCommercial">Komersial (siang + malam)</option>
-                <option value="office" data-i18n="loadShapeOffice">Perkantoran (hari kerja, siang)</option>
-                <option value="residential" data-i18n="loadShapeResidential">Residensial (pagi + malam)</option>
-                <option value="flat" data-i18n="loadShapeFlat">Datar (beban konstan)</option>
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="loadVaLabel">Daya tersambung (VA)</label>
+              <select id="load-va" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
+                <option value="450">450 VA</option>
+                <option value="900">900 VA</option>
+                <option value="1300">1.300 VA</option>
+                <option value="2200" selected>2.200 VA</option>
+                <option value="3500">3.500 VA</option>
+                <option value="4400">4.400 VA</option>
+                <option value="5500">5.500 VA</option>
+                <option value="7700">7.700 VA</option>
+                <option value="11000">11.000 VA</option>
+                <option value="13000">13.000 VA</option>
+                <option value="16500">16.500 VA</option>
+                <option value="22000">22.000 VA</option>
+                <option value="33000">33.000 VA</option>
+                <option value="41500">41.500 VA</option>
+                <option value="53000">53.000 VA</option>
+                <option value="66000">66.000 VA</option>
               </select>
             </div>
+            <div>
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="loadBillLabel">Tagihan per bulan (Rp)</label>
+              <input id="load-bill-amount" type="number" min="0" step="1000" placeholder="500000" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800" />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-slate-600 mb-1" data-i18n="loadTariffLabel">Tarif (Rp/kWh)</label>
+                <input id="load-tariff" type="number" min="1" step="0.01" value="1444.7" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-600 mb-1" data-i18n="loadPpjLabel">PPJ (%)</label>
+                <input id="load-ppj" type="number" min="0" max="30" step="0.5" value="0" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800" />
+              </div>
+            </div>
+            <p class="text-[11px] text-slate-500" data-i18n="loadBillHint">kWh/bln = tagihan / (tarif x (1 + PPJ)). Tarif otomatis dari daya (Triwulan IV 2026, rumah tangga); ubah bila golonganmu berbeda. Biaya admin pascabayar tidak dihitung.</p>
           </div>
 
           <div id="load-csv" class="space-y-2 hidden">
@@ -336,6 +377,7 @@
           </div>
 
           <p id="load-status" class="text-[11px] font-sans text-slate-500"></p>
+          <p id="load-warn" class="text-[11px] font-sans text-[#BB1326] hidden"></p>
         </div>
       </section>
 
@@ -677,7 +719,7 @@
   <script src="js/solar.js?v=7"></script>
   <script src="js/scene3d.js?v=11"></script>
   <script src="js/shading.js?v=8"></script>
-  <script src="js/i18n.js?v=18"></script>
-  <script src="js/main.js?v=19"></script>
+  <script src="js/i18n.js?v=19"></script>
+  <script src="js/main.js?v=20"></script>
 </body>
 </html>
