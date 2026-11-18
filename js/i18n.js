@@ -11,7 +11,6 @@ const I18n = {
 
   strings: {
     id: {
-      subtitle: 'Geometri Atap Surya 3D, Simulasi Bayangan & Studio Dispatch BESS',
       currency: 'Mata Uang',
       language: 'Bahasa',
       sec01: '01 · ARSITEKTUR ATAP',
@@ -342,7 +341,6 @@ const I18n = {
       landFooterNote: 'Dibuat oleh Ardian Candra Pratama'
     },
     en: {
-      subtitle: '3D Rooftop Solar PV Geometry, Shadow Raycasting & BESS Dispatch Studio',
       currency: 'Currency',
       language: 'Language',
       sec01: '01 · ROOFTOP ARCHITECTURE',
