@@ -20,6 +20,7 @@ let authUser = null;      // firebase.User | null
 let authIdToken = null;   // string | null
 let authQuota = null;     // {used, total, plan, exempt} | null
 let selectedPackage = null;
+let selectedMethod = 'qris'; // qris | va | gopay
 let snapReady = false;
 const authConfigured = (typeof FIREBASE_CONFIG !== 'undefined'
   && FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('PASTE-'));
@@ -204,6 +205,25 @@ function setPayBusy(busy) {
   if (btn) btn.disabled = busy;
 }
 
+// ---- Pilihan metode pembayaran ----
+
+function selectMethod(method) {
+  selectedMethod = method;
+  document.querySelectorAll('.js-bay-method').forEach((el) => {
+    const on = el.getAttribute('data-method') === method;
+    el.setAttribute('aria-checked', on ? 'true' : 'false');
+    el.classList.toggle('border-brand', on);
+    el.classList.toggle('bg-brand/5', on);
+    el.classList.toggle('border-slate-200', !on);
+  });
+}
+
+function initMethodPicker() {
+  document.querySelectorAll('.js-bay-method').forEach((el) => {
+    el.addEventListener('click', () => selectMethod(el.getAttribute('data-method')));
+  });
+}
+
 // ---- Midtrans Snap ----
 
 function loadSnapJs() {
@@ -264,7 +284,7 @@ async function startPayment() {
     const res = await fetch(API_URL + '/payment/create', {
       method: 'POST',
       headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
-      body: JSON.stringify({ package: selectedPackage })
+      body: JSON.stringify({ package: selectedPackage, payment_method: selectedMethod })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -340,6 +360,7 @@ function initBayar() {
     updateAuthUI(); // renderOrder dipanggil dari updateAuthUI
   });
   initAuth();
+  initMethodPicker();
   updateAuthUI();
   if (selectedPackage) loadSnapJs();
 }
