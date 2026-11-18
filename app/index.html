@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <base href="/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Perhitungan · 3D Rooftop PV & BESS Engineering Suite</title>
+  <!-- Google Fonts matching ardiancandra.com aesthetic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bgdeep: '#FFFFFF',
+            bgcard: '#FFFFFF',
+            bgpanel: '#F2F4F5',
+            solar: '#F5E214',
+            bess: '#12579B',
+            brand: '#12579B'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="css/style.css?v=9" />
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico?v=1" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=1" />
+  <!-- Three.js & OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body class="bg-bgdeep text-slate-800 font-sans antialiased selection:bg-solar selection:text-slate-950 min-h-screen flex flex-col">
+
+  <!-- TOP NAVIGATION BAR (ardiancandra.com themed) -->
+  <header class="border-b border-slate-200 bg-bgdeep sticky top-0 z-30 h-16 shrink-0">
+    <div class="h-full px-4 sm:px-6 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <a href="/" title="Kembali ke beranda" class="shrink-0"><img src="assets/sun-icon.png?v=1" alt="" class="w-10 h-10 rounded-xl shrink-0" onerror="this.style.display='none'" /></a>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="hidden md:inline-block shrink-0 text-[11px] font-sans px-2 py-0.5 rounded bg-brand text-white border border-brand">3D Rooftop PV &amp; BESS Engineering Suite</span>
+          </div>
+          <p class="text-xs text-slate-500 truncate" data-i18n="subtitle">Geometri Atap Surya 3D, Simulasi Bayangan & Studio Dispatch BESS</p>
+        </div>
+      </div>
+
+      <!-- Currency & Language Toggles -->
+      <div class="flex items-center gap-2 shrink-0">
+        <a href="/paket" class="text-xs font-sans font-semibold text-brand hover:underline" data-i18n="navPaket">Paket</a>
+        <button id="currency-toggle" class="text-xs font-sans px-2.5 py-1.5 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition">
+          <span data-i18n="currency">Mata Uang</span>: <span id="currency-label" class="text-brand font-bold">IDR (Rp)</span>
+        </button>
+        <button id="language-toggle" class="text-xs font-sans px-2.5 py-1.5 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition">
+          <span data-i18n="language">Bahasa</span>: <span id="language-label" class="text-brand font-bold">Indonesia</span>
+        </button>
+        <button id="auth-btn" class="text-xs font-sans px-2.5 py-1.5 rounded bg-[#12579B] text-white font-semibold hover:bg-[#0e467d] transition" data-i18n="authLogin">Masuk</button>
+        <span id="auth-user" class="hidden items-center gap-2 text-xs font-sans">
+          <span id="auth-user-label" class="text-slate-700 font-semibold max-w-[140px] truncate"></span>
+          <span id="auth-quota-pill" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-full font-bold" style="background:#F5E214;color:#0f172a">
+            <img src="assets/sun-icon.png?v=1" alt="" class="w-4 h-4 rounded-full" onerror="this.style.display='none'" />
+            <span id="auth-quota"></span>
+          </span>
+          <button id="auth-logout" class="px-2 py-1 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition" data-i18n="authLogout">Keluar</button>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE: icon rail + collapsible panel + workspace -->
+  <div id="layout-row" class="flex flex-1 flex-col lg:flex-row items-start">
+
+    <!-- ICON RAIL (desktop): section shortcuts + panel collapse -->
+    <nav id="icon-rail" class="hidden lg:flex flex-col items-center gap-1 w-[52px] shrink-0 sticky top-16 z-20 h-[calc(100vh-64px)] py-3 border-r border-slate-200 bg-white">
+      <button data-section="section-01" class="rail-btn active w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="Arsitektur Atap" aria-label="Arsitektur Atap">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>
+      </button>
+      <button data-section="section-02" class="rail-btn w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="Array PV Surya" aria-label="Array PV Surya">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 12h18"/><path d="M9 5v14"/><path d="M15 5v14"/></svg>
+      </button>
+      <button data-section="section-03" class="rail-btn w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="BESS & Surya" aria-label="BESS & Surya">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="17" height="9" rx="2"/><path d="M22 11v3"/><path d="M6 11v3"/><path d="M10 11v3"/></svg>
+      </button>
+      <button data-section="section-04" class="rail-btn w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="Profil Beban" aria-label="Profil Beban">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M2 20h20"/></svg>
+      </button>
+      <button data-section="section-05" class="rail-btn w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="Cuaca / EPW" aria-label="Cuaca / EPW">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.9 4.9l1.4 1.4"/><path d="M17.7 17.7l1.4 1.4"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M4.9 19.1l1.4-1.4"/><path d="M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <button id="rail-collapse-btn" class="rail-btn mt-auto w-10 h-10 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition" title="Sembunyikan panel" aria-label="Sembunyikan panel">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+    </nav>
+
+    <!-- LEFT SIDEBAR: PARAMETERS -->
+    <aside id="sidebar" class="w-full lg:w-[360px] lg:shrink-0 lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] lg:overflow-y-auto custom-scroll lg:border-r border-slate-200 bg-white">
+
+      <!-- SECTION 01: ROOFTOP ARCHITECTURE -->
+      <section id="section-01" class="p-4 border-b border-slate-200">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-[11px] font-sans uppercase tracking-wider text-slate-500 font-semibold" data-i18n="sec01">01 · ARSITEKTUR ATAP</span>
+          <span class="text-[11px] font-sans text-slate-400">3D Mesh Generator</span>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs text-slate-600 mb-1" data-i18n="roofTypeLabel">Tipologi Struktur Atap 3D</label>
+            <select id="roof-type" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-solar">
+              <option value="gable-dual" data-i18n="roofOptGableDual">Pelana 2 Sisi (Gable Dual-Slope)</option>
+              <option value="gable-single" data-i18n="roofOptGableSingle">Pelana 1 Sisi Aktif (Gable Single-Side)</option>
+              <option value="flat-tilt" data-i18n="roofOptFlat">Dak Beton + Racking Miring (Flat C&I)</option>
+              <option value="shed" data-i18n="roofOptShed">Atap Miring 1 Sisi (Mono-Pitch / Shed)</option>
+              <option value="hip" data-i18n="roofOptHip">Atap Limas 3D (Hip Roof Polygon)</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-500" data-i18n="orientationLabel">Orientasi Bangunan</span>
+              <span id="val-orientation" class="font-sans text-brand">180° · Selatan</span>
+            </div>
+            <input id="orientation" type="range" min="0" max="355" step="5" value="180" class="w-full accent-[#F5E214]" />
+            <p class="text-[11px] text-slate-500 mt-1" data-i18n="orientationHint">Arah hadap atap utama · 0° = Utara, 90° = Timur</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-500" data-i18n="roofLength">Panjang Atap (X)</span>
+                <span id="val-roof-length" class="font-sans text-brand">24 m</span>
+              </div>
+              <input id="roof-length" type="range" min="10" max="50" step="1" value="24" class="w-full accent-[#F5E214]" />
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-500" data-i18n="roofWidth">Lebar Atap (Y)</span>
+                <span id="val-roof-width" class="font-sans text-brand">14 m</span>
+              </div>
+              <input id="roof-width" type="range" min="8" max="32" step="1" value="14" class="w-full accent-[#F5E214]" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-500" data-i18n="roofTilt">Kemiringan Atap (Tilt)</span>
+                <span id="val-roof-tilt" class="font-sans text-brand">18°</span>
+              </div>
+              <input id="roof-tilt" type="range" min="0" max="40" step="1" value="18" class="w-full accent-[#F5E214]" />
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-500" data-i18n="wallHeight">Tinggi Gedung</span>
+                <span id="val-wall-height" class="font-sans text-slate-700">6.0 m</span>
+              </div>
+              <input id="wall-height" type="range" min="3" max="16" step="0.5" value="6" class="w-full accent-[#12579B]" />
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-500" data-i18n="setback">Perimeter Setback (Jarak Tepi Aman)</span>
+              <span id="val-setback" class="font-sans text-slate-700">0.8 m</span>
+            </div>
+            <input id="roof-setback" type="range" min="0.3" max="2.5" step="0.1" value="0.8" class="w-full accent-[#F5E214]" />
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 02: SOLAR PV ARRAY SPEC -->
+      <section id="section-02" class="p-4 border-b border-slate-200">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-[11px] font-sans uppercase tracking-wider text-slate-500 font-semibold" data-i18n="sec02">02 · SPESIFIKASI ARRAY PV SURYA</span>
+          <span class="text-[11px] font-sans text-slate-400">IEC 61215 / 61730</span>
+        </div>
+
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="panelOrientation">Orientasi Modul</label>
+              <select id="panel-orientation" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
+                <option value="portrait">Portrait (1.13m × 2.27m)</option>
+                <option value="landscape">Landscape (2.27m × 1.13m)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="panelWp">Kapasitas Modul (Wp)</label>
+              <select id="panel-wp" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
+                <option value="550">550 Wp (Mono PERC)</option>
+                <option value="610" selected>610 Wp (N-Type TOPCon)</option>
+                <option value="670">670 Wp (Utility Bifacial)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-500" data-i18n="rowGap">Jarak Antar-Baris</span>
+                <span id="val-row-gap" class="font-sans text-slate-700">0.35 m</span>
+              </div>
+              <input id="row-gap" type="range" min="0.05" max="1.8" step="0.05" value="0.35" class="w-full accent-[#F5E214]" />
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-500" data-i18n="rackTilt">Sudut Racking (Flat)</span>
+                <span id="val-rack-tilt" class="font-sans text-slate-700">12°</span>
+              </div>
+              <input id="rack-tilt" type="range" min="5" max="25" step="1" value="12" class="w-full accent-[#F5E214]" />
+            </div>
+          </div>
+
+          <div class="pt-1 flex items-center justify-between text-xs text-slate-500 border-t border-slate-200">
+            <span><span data-i18n="obstacleLabel">Obstacle / Modul Nonaktif:</span> <strong id="obstacle-count" class="text-brand font-sans">0</strong></span>
+            <button id="clear-obstacles" class="text-xs font-sans text-bess hover:underline" data-i18n="resetObstacles">Reset Obstacle</button>
+          </div>
+
+          <div class="pt-2 border-t border-slate-200">
+            <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="moduleUploadTitle">Modul custom (upload CSV)</div>
+            <div class="flex flex-wrap gap-2">
+              <label for="module-file" class="cursor-pointer px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition" data-i18n="uploadCsv">Upload CSV</label>
+              <input id="module-file" type="file" accept=".csv" class="hidden" />
+              <button id="module-template" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition" data-i18n="downloadTemplate">Template CSV</button>
+              <button id="module-clear" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition hidden" data-i18n="clearCustom">Hapus</button>
+            </div>
+            <p id="module-status" class="text-[11px] font-sans text-slate-500 mt-1.5" data-i18n="moduleStatusDefault">Belum ada modul custom. CSV berisi satu modul: nama, daya, dimensi, efisiensi, koefisien suhu.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 03: BESS STORAGE & SUN PATH -->
+      <section id="section-03" class="p-4">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-[11px] font-sans uppercase tracking-wider text-slate-500 font-semibold" data-i18n="sec03">03 · GEOMETRI BESS & SURYA</span>
+          <span class="text-[11px] font-sans text-slate-400" data-i18n="sizingLabel">Sizing Sederhana (Rule-Based)</span>
+        </div>
+
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="bessChemistry">Kimia BESS</label>
+              <select id="bess-chemistry" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
+                <option value="LFP" selected>LFP (LiFePO₄ · 92% RTE)</option>
+                <option value="NAION">Sodium-Ion (Na-ion · 89% RTE)</option>
+                <option value="VRFB">Vanadium Flow (VRFB · 78% RTE)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="siteLocation">Zona Iklim / Lokasi</label>
+              <select id="site-location" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
+                <option value="jakarta" selected>Jakarta, ID (PSH 4.6h)</option>
+                <option value="riau" data-i18n="siteRiau">Kepulauan Riau (PSH 4.9h)</option>
+                <option value="oskarshamn">Oskarshamn, SE (PSH 3.3h)</option>
+                <option value="bali" data-i18n="siteBali">Denpasar, Bali (PSH 5.0h)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-500" data-i18n="bessKwh">Kapasitas BESS (Usable Energy)</span>
+              <span id="val-bess-kwh" class="font-sans text-bess">120 kWh</span>
+            </div>
+            <input id="bess-kwh" type="range" min="0" max="500" step="10" value="120" class="w-full accent-[#12579B]" />
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-500" data-i18n="bessKw">Daya BESS / PCS</span>
+              <span id="val-bess-kw" class="font-sans text-bess">60 kW</span>
+            </div>
+            <input id="bess-kw" type="range" min="5" max="500" step="5" value="60" class="w-full accent-[#12579B]" />
+          </div>
+
+          <div class="pt-2 border-t border-slate-200">
+            <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="bessUploadTitle">BESS custom (upload CSV)</div>
+            <div class="flex flex-wrap gap-2">
+              <label for="bess-file" class="cursor-pointer px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition" data-i18n="uploadCsv">Upload CSV</label>
+              <input id="bess-file" type="file" accept=".csv" class="hidden" />
+              <button id="bess-template" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition" data-i18n="downloadTemplate">Template CSV</button>
+              <button id="bess-clear" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition hidden" data-i18n="clearCustom">Hapus</button>
+            </div>
+            <p id="bess-status" class="text-[11px] font-sans text-slate-500 mt-1.5" data-i18n="bessStatusDefault">Belum ada BESS custom. CSV berisi satu sistem baterai: nama, kapasitas, daya, RTE, DoD.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 04: LOAD PROFILE -->
+      <section id="section-04" class="p-4 border-b border-slate-200 panel-hidden">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-[11px] font-sans uppercase tracking-wider text-slate-500 font-semibold" data-i18n="sec04panel">04 · PROFIL BEBAN</span>
+          <span class="text-[11px] font-sans text-slate-400">Manual / Tagihan / CSV</span>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs text-slate-600 mb-1" data-i18n="loadModeLabel">Sumber profil beban</label>
+            <select id="load-mode" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
+              <option value="auto" data-i18n="loadModeAuto">Otomatis (dari kWp terpasang)</option>
+              <option value="manual" data-i18n="loadModeManual">Manual sederhana</option>
+              <option value="bill" data-i18n="loadModeBill">Tagihan PLN (dari daya VA)</option>
+              <option value="csv" data-i18n="loadModeCsv">Upload CSV (8760 jam)</option>
+            </select>
+          </div>
+
+          <div id="load-manual" class="space-y-3 hidden">
+            <div>
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="loadAnnualLabel">Konsumsi tahunan (kWh/thn)</label>
+              <input id="load-annual" type="number" min="1000" step="1000" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800" />
+            </div>
+          </div>
+
+          <div id="load-shape-block" class="hidden">
+            <label class="block text-xs text-slate-600 mb-1" data-i18n="loadShapeLabel">Bentuk profil harian</label>
+            <select id="load-shape" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
+              <option value="commercial" data-i18n="loadShapeCommercial">Komersial (siang + malam)</option>
+              <option value="office" data-i18n="loadShapeOffice">Perkantoran (hari kerja, siang)</option>
+              <option value="residential" data-i18n="loadShapeResidential">Residensial (pagi + malam)</option>
+              <option value="flat" data-i18n="loadShapeFlat">Datar (beban konstan)</option>
+            </select>
+          </div>
+
+          <div id="load-bill" class="space-y-3 hidden">
+            <div>
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="loadVaLabel">Daya tersambung (VA)</label>
+              <select id="load-va" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800">
+                <option value="450">450 VA</option>
+                <option value="900">900 VA</option>
+                <option value="1300">1.300 VA</option>
+                <option value="2200" selected>2.200 VA</option>
+                <option value="3500">3.500 VA</option>
+                <option value="4400">4.400 VA</option>
+                <option value="5500">5.500 VA</option>
+                <option value="7700">7.700 VA</option>
+                <option value="11000">11.000 VA</option>
+                <option value="13000">13.000 VA</option>
+                <option value="16500">16.500 VA</option>
+                <option value="22000">22.000 VA</option>
+                <option value="33000">33.000 VA</option>
+                <option value="41500">41.500 VA</option>
+                <option value="53000">53.000 VA</option>
+                <option value="66000">66.000 VA</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-600 mb-1" data-i18n="loadBillLabel">Tagihan per bulan (Rp)</label>
+              <input id="load-bill-amount" type="number" min="0" step="1000" placeholder="500000" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800" />
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-slate-600 mb-1" data-i18n="loadTariffLabel">Tarif (Rp/kWh)</label>
+                <input id="load-tariff" type="number" min="1" step="0.01" value="1444.7" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-600 mb-1" data-i18n="loadPpjLabel">PPJ (%)</label>
+                <input id="load-ppj" type="number" min="0" max="30" step="0.5" value="0" class="w-full bg-bgpanel border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-800" />
+              </div>
+            </div>
+            <p class="text-[11px] text-slate-500" data-i18n="loadBillHint">kWh/bln = tagihan / (tarif x (1 + PPJ)). Tarif otomatis dari daya (Triwulan IV 2026, rumah tangga); ubah bila golonganmu berbeda. Biaya admin pascabayar tidak dihitung.</p>
+          </div>
+
+          <div id="load-csv" class="space-y-2 hidden">
+            <div class="flex flex-wrap gap-2">
+              <label for="load-file" class="cursor-pointer px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition" data-i18n="uploadCsv">Upload CSV</label>
+              <input id="load-file" type="file" accept=".csv" class="hidden" />
+              <button id="load-template" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition" data-i18n="downloadTemplate">Template CSV</button>
+              <button id="load-clear" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition hidden" data-i18n="clearCustom">Hapus</button>
+            </div>
+            <p class="text-[11px] text-slate-500" data-i18n="loadCsvHint">CSV 8760 baris: hour (0-8759), load_kw. Unduh template, isi di Excel, lalu upload.</p>
+          </div>
+
+          <p id="load-status" class="text-[11px] font-sans text-slate-500"></p>
+          <p id="load-warn" class="text-[11px] font-sans text-[#BB1326] hidden"></p>
+        </div>
+      </section>
+
+      <!-- SECTION 05: WEATHER / EPW -->
+      <section id="section-05" class="p-4 panel-hidden">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-[11px] font-sans uppercase tracking-wider text-slate-500 font-semibold" data-i18n="sec05panel">05 · CUACA / EPW</span>
+          <span class="text-[11px] font-sans text-slate-400">TMYx / EPW</span>
+        </div>
+
+        <div class="space-y-3">
+          <p id="weather-status" class="text-xs font-sans text-slate-600"></p>
+          <div class="flex flex-wrap gap-2">
+            <label for="epw-file" class="cursor-pointer px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition" data-i18n="uploadEpw">Upload EPW</label>
+            <input id="epw-file" type="file" accept=".epw" class="hidden" />
+            <button id="epw-clear" class="px-3 py-1.5 rounded-lg bg-white text-slate-600 text-xs font-sans font-semibold border border-slate-300 hover:bg-slate-50 transition hidden" data-i18n="epwClear">Kembali ke TMYx</button>
+          </div>
+          <p class="text-[11px] text-slate-500" data-i18n="epwHint">File .epw sendiri dipakai sebagai cuaca simulasi menggantikan file TMYx lokasi. Header EPW dibaca untuk nama lokasi, lintang/bujur, dan PSH.</p>
+          <div id="epw-info" class="text-[11px] font-sans text-slate-600 hidden"></div>
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- RIGHT WORKSPACE: KPI CARDS + 3D VIEWPORT + 24H DISPATCH -->
+    <main id="workspace-main" class="flex-1 min-w-0 w-full p-4 sm:p-5 flex flex-col gap-4">
+
+      <!-- KPI METRICS ROW -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3.5">
+          <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="kpiKwp">Kapasitas PV Terpasang</div>
+          <div class="mt-1 flex items-baseline gap-1.5">
+            <span id="kpi-kwp" class="text-2xl font-sans font-bold text-brand">0.0</span>
+            <span class="text-xs font-sans text-slate-500">kWp</span>
+          </div>
+          <div id="kpi-panels" class="text-[11px] font-sans text-slate-500 mt-1">0 modul aktif</div>
+        </div>
+
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3.5">
+          <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="kpiYield">Hasil Energi Tahunan</div>
+          <div class="mt-1 flex items-baseline gap-1.5">
+            <span id="kpi-yield" class="text-2xl font-sans font-bold text-slate-900">0</span>
+            <span class="text-xs font-sans text-slate-500" data-i18n="kpiYieldUnit">MWh/thn</span>
+          </div>
+          <div id="kpi-specific" class="text-[11px] font-sans text-slate-500 mt-1">Rasio area &amp; cos(θ) aktif</div>
+        </div>
+
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3.5">
+          <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="kpiBess">Spesifikasi Penyimpanan BESS</div>
+          <div class="mt-1 flex items-baseline gap-1.5">
+            <span id="kpi-bess" class="text-2xl font-sans font-bold text-bess">120</span>
+            <span class="text-xs font-sans text-slate-500">kWh</span>
+          </div>
+          <div id="kpi-autonomy" class="text-[11px] font-sans text-slate-500 mt-1">LFP · 92% Round-Trip</div>
+        </div>
+
+        <div class="bg-bgcard border border-slate-200 rounded-xl p-3.5">
+          <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="kpiSavings">Penghematan Tahunan &amp; CO₂</div>
+          <div class="mt-1 flex items-baseline gap-1.5">
+            <span id="kpi-savings" class="text-xl font-sans font-bold text-brand">Rp 0</span>
+          </div>
+          <div id="kpi-co2" class="text-[11px] font-sans text-slate-500 mt-1">0,0 tCO₂/thn dihindari</div>
+        </div>
+      </div>
+
+      <!-- 3D WEBGL VIEWPORT -->
+      <div class="relative bg-bgcard border border-slate-200 rounded-xl overflow-hidden h-[520px] sm:h-[580px] lg:h-[640px] shadow-xl">
+        <!-- Top Overlay HUD -->
+        <div class="absolute top-3 left-3 z-10 flex flex-wrap items-center gap-2 pointer-events-none">
+          <span class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-300 text-[11px] font-sans text-brand">
+            3D INTERACTIVE ROOFTOP · THREE.JS WEBGL
+          </span>
+          <span id="hud-slope-info" class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-200 text-[11px] font-sans text-slate-600">
+            Lebar Kemiringan Kasau: 7.36 m
+          </span>
+          <span class="px-2.5 py-1 rounded bg-bgdeep/85 border border-slate-200 text-[11px] font-sans text-slate-600 flex items-center gap-2">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#12579B] inline-block"></span><span data-i18n="northLegend">Utara</span></span>
+          </span>
+        </div>
+
+        <!-- Camera Preset Controls -->
+        <div class="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+          <button data-cam="iso" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-300 text-[11px] font-sans text-slate-700 transition">Iso 3D</button>
+          <button data-cam="top" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-300 text-[11px] font-sans text-slate-700 transition" data-i18n="camTop">Denah Atas</button>
+          <button data-cam="side" class="cam-btn px-2.5 py-1 rounded bg-bgdeep/85 hover:bg-solar/20 border border-slate-300 text-[11px] font-sans text-slate-700 transition" data-i18n="camSide">Elevasi</button>
+        </div>
+
+        <!-- Bottom Hint Overlay -->
+        <div class="absolute bottom-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none text-[11px] font-sans text-slate-500">
+          <span class="bg-bgdeep/85 px-2.5 py-1 rounded border border-slate-200">
+            <span data-i18n="hintText">Drag: Putar 3D · Scroll: Zoom · </span><strong class="text-brand" data-i18n="hintStrong">Klik Modul PV: Toggle Obstacle (Cerobong/Skylight)</strong>
+          </span>
+          <span id="hud-sun-elevation" class="bg-bgdeep/85 px-2.5 py-1 rounded border border-slate-200 text-bess">
+            Elevasi Matahari: 62°
+          </span>
+        </div>
+
+        <!-- Three.js Container -->
+        <div id="three-canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+      </div>
+
+      <!-- SOLAR TIME CONTROL (below the 3D viewport) -->
+      <div class="bg-bgcard border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3">
+        <span class="text-xs text-slate-500 whitespace-nowrap" data-i18n="sunHour">Jam Surya (3D Sun Raycasting)</span>
+        <input id="sun-hour" type="range" min="6.5" max="17.5" step="0.25" value="10.5" class="flex-1 accent-[#F5E214]" />
+        <span id="val-sun-hour" class="text-xs font-sans text-brand tabular-nums w-10 text-right">10:30</span>
+      </div>
+
+      <!-- ROOF-SHAPE SHADING ANALYSIS (3D RAYCAST) -->
+      <section class="bg-bgcard border border-slate-200 rounded-xl p-4">
+        <div>
+          <span class="text-xs font-sans uppercase tracking-wider text-bess font-semibold" data-i18n="shadingTitle">ANALISIS SHADING BENTUK ATAP (RAYCAST 3D)</span>
+          <p class="text-xs text-slate-500 mt-0.5 max-w-2xl" data-i18n="shadingDesc">Rugi shading dari geometri atap: lereng menaungi lereng, bayangan bubungan, dan obstacle. Dihitung dengan raycast dari tiap modul ke arah matahari pada 12 hari representatif (tanggal 15 tiap bulan, dari terbit hingga terbenam matahari).</p>
+        </div>
+        <p id="shading-status" class="text-xs font-sans text-slate-500 mt-3" data-i18n="shadingNotRun">Belum dihitung. Angka energi di atas belum termasuk rugi shading bentuk atap.</p>
+        <div id="shading-results" class="hidden mt-3">
+          <div class="flex flex-wrap items-end gap-x-8 gap-y-2">
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="shadingAnnual">Rugi shading tahunan</div>
+              <div class="mt-0.5 flex items-baseline gap-1.5">
+                <span id="shading-annual" class="text-2xl font-sans font-bold text-slate-900 tabular-nums">0.0</span>
+                <span class="text-xs font-sans text-slate-500">%</span>
+              </div>
+              <div id="shading-modules" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+              <div id="shading-split" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+            <div id="shading-corrected" class="text-xs font-sans text-slate-600"></div>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="shadingPerSlope">Per lereng</div>
+              <div id="shading-slopes" class="flex flex-col gap-1.5"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="shadingMonthly">Per bulan</div>
+              <div id="shading-months" class="flex items-end gap-1 h-16"></div>
+              <div id="shading-month-labels" class="flex gap-1 mt-1"></div>
+            </div>
+          </div>
+          <p class="text-[11px] font-sans text-slate-400 mt-3" data-i18n="shadingBeamNote">Gabungan rugi beam (sinar langsung) dan diffuse (langit terhalang); fraksi diffuse adalah asumsi nilai tipikal, dan refleksi tanah belum dihitung.</p>
+        </div>
+      </section>
+
+      <!-- DETAILED SIMULATION (PER-SLOPE) -->
+      <section class="bg-bgcard border border-slate-200 rounded-xl p-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <span class="text-xs font-sans uppercase tracking-wider text-bess font-semibold" data-i18n="pysamTitle">SIMULASI DETAIL</span>
+            <p class="text-xs text-slate-500 mt-0.5 max-w-2xl" data-i18n="pysamDesc">Simulasi detail panel surya dan baterai dengan data tiap lereng dari model 3D: jumlah modul, tilt, azimuth, dan shading raycast. Dispatch memaksimalkan self-consumption; ekspor ke grid tidak diizinkan. Cuaca memakai file TMYx per lokasi.</p>
+          </div>
+          <div class="flex gap-2 shrink-0">
+            <button id="run-pysam-shading" class="px-3.5 py-2 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50 disabled:cursor-wait" data-i18n="shadingRun">Hitung Shading</button>
+            <button id="run-pysam" class="px-3.5 py-2 rounded-lg bg-[#F5E214] text-slate-900 text-xs font-sans font-semibold hover:bg-[#e3d11a] transition disabled:opacity-50 disabled:cursor-wait" data-i18n="pysamRun">Jalankan Simulasi Detail</button>
+          </div>
+        </div>
+        <p id="pysam-status" class="text-xs font-sans text-slate-500 mt-3" data-i18n="pysamNotRun">Belum dijalankan. Satu simulasi memakan waktu sekitar 40 detik (server bangun dari tidur) ditambah waktu shading bila belum dihitung.</p>
+        <div id="pysam-results" class="hidden mt-3">
+          <p id="pysam-dispatch" class="text-xs text-slate-500"></p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamAnnualPv">Energi PV tahunan</div>
+              <div class="mt-0.5 flex items-baseline gap-1.5">
+                <span id="pysam-pv" class="text-2xl font-sans font-bold text-slate-900 tabular-nums">0</span>
+                <span class="text-xs font-sans text-slate-500" data-i18n="kpiYieldUnit">MWh/thn</span>
+              </div>
+              <div id="pysam-quick" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamSelfConsumption">Konsumsi sendiri</div>
+              <div class="mt-0.5 flex items-baseline gap-1.5">
+                <span id="pysam-sc" class="text-2xl font-sans font-bold text-brand tabular-nums">0</span>
+                <span class="text-xs font-sans text-slate-500">%</span>
+              </div>
+              <div id="pysam-import-export" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamSelfSufficiency">Kemandirian</div>
+              <div class="mt-0.5 flex items-baseline gap-1.5">
+                <span id="pysam-ss" class="text-2xl font-sans font-bold text-brand tabular-nums">0</span>
+                <span class="text-xs font-sans text-slate-500">%</span>
+              </div>
+              <div id="pysam-load" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamEconomics">Ekonomi (ilustrasi)</div>
+              <div id="pysam-econ" class="text-xs font-sans text-slate-700 mt-1 leading-relaxed"></div>
+              <div id="pysam-weather" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamSpecificYield">Yield spesifik</div>
+              <div class="mt-0.5 flex items-baseline gap-1.5">
+                <span id="pysam-yield" class="text-2xl font-sans font-bold text-slate-900 tabular-nums">0</span>
+                <span class="text-xs font-sans text-slate-500">kWh/kWp</span>
+              </div>
+              <div id="pysam-yield-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamSelfConsumed">Energi PV terpakai</div>
+              <div class="mt-0.5 flex items-baseline gap-1.5">
+                <span id="pysam-used" class="text-2xl font-sans font-bold text-brand tabular-nums">0</span>
+                <span class="text-xs font-sans text-slate-500" data-i18n="kpiYieldUnit">MWh/thn</span>
+              </div>
+              <div id="pysam-used-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamCurtailed">Curtailment (terbuang)</div>
+              <div class="mt-0.5 flex items-baseline gap-1.5">
+                <span id="pysam-curt" class="text-2xl font-sans font-bold text-[#BB1326] tabular-nums">0</span>
+                <span class="text-xs font-sans text-slate-500" data-i18n="kpiYieldUnit">MWh/thn</span>
+              </div>
+              <div id="pysam-curt-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase" data-i18n="pysamCapex">Total CAPEX</div>
+              <div class="mt-0.5 flex items-baseline gap-1.5">
+                <span id="pysam-capex-total" class="text-2xl font-sans font-bold text-slate-900 tabular-nums">0</span>
+              </div>
+              <div id="pysam-capex-sub" class="text-[11px] font-sans text-slate-500 mt-0.5"></div>
+            </div>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase mb-1" data-i18n="pysamCapexTitle">Rincian CAPEX</div>
+              <div id="pysam-capex" class="text-xs font-sans"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase mb-1" data-i18n="pysamEconDetailTitle">Metrik ekonomi</div>
+              <div id="pysam-econ-detail" class="text-xs font-sans"></div>
+            </div>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="pysamPerSlope">Per lereng</div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs font-sans">
+                  <thead>
+                    <tr class="text-left text-slate-400 border-b border-slate-200">
+                      <th class="py-1 pr-2 font-medium" data-i18n="pysamColSlope">Lereng</th>
+                      <th class="py-1 pr-2 font-medium text-right" data-i18n="pysamColKwp">kWp</th>
+                      <th class="py-1 pr-2 font-medium text-right" data-i18n="pysamColTilt">Tilt</th>
+                      <th class="py-1 pr-2 font-medium text-right" data-i18n="pysamColAzimuth">Azimuth</th>
+                      <th class="py-1 pr-2 font-medium text-right" data-i18n="pysamColShading">Shading</th>
+                      <th class="py-1 pr-2 font-medium text-right" data-i18n="pysamColYield">Yield</th>
+                      <th class="py-1 font-medium text-right" data-i18n="pysamColKwh">Energi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pysam-slopes"></tbody>
+                </table>
+              </div>
+              <div id="pysam-battery" class="text-xs font-sans text-slate-600 mt-3"></div>
+            </div>
+            <div>
+              <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="pysamMonthly">Energi per bulan: PV, impor, ekspor</div>
+              <div id="pysam-months" class="flex items-end gap-1 h-16"></div>
+              <div id="pysam-month-labels" class="flex gap-1 mt-1"></div>
+              <div class="flex flex-wrap items-center gap-4 text-[11px] font-sans text-slate-500 mt-2">
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#D97706] inline-block"></span><span data-i18n="pysamMonthPv">PV</span></span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-[#BB1326] inline-block"></span><span data-i18n="pysamMonthImport">Impor</span></span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-slate-400 inline-block"></span><span data-i18n="pysamMonthExport">Ekspor</span></span>
+              </div>
+              <p class="text-[11px] font-sans text-slate-400 mt-3" data-i18n="pysamNote">Tiap lereng dihitung sebagai sistem sendiri dengan rasio DC/AC yang sama; shading raycast masuk lewat losses per lereng. Asumsi ekonomi adalah ilustrasi, bukan penawaran vendor.</p>
+              <div class="mt-4 pt-3 border-t border-slate-200">
+                <div class="text-[11px] font-sans text-slate-500 uppercase mb-2" data-i18n="reportTitle">Unduh Laporan</div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <button data-report="pdf" class="report-btn px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50">PDF</button>
+                  <button data-report="xlsx" class="report-btn px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50">Excel</button>
+                  <button data-report="docx" class="report-btn px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50">Word</button>
+                  <button data-report="csv" class="report-btn px-3 py-1.5 rounded-lg bg-white text-brand text-xs font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50" data-i18n="reportCsv">CSV (per jam)</button>
+                  <span id="report-status" class="text-xs font-sans text-slate-500"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="text-[11px] font-sans text-slate-400 mt-4 pt-3 border-t border-slate-200" data-i18n="disclaimerShort">Hasil simulasi ini adalah estimasi berdasarkan model dan data cuaca tahun tipikal (TMY), bukan jaminan kinerja. Hasil sebenarnya dapat berbeda tergantung kondisi cuaca, pengukuran atap, shading di lapangan, dan kualitas pemasangan. Angka ekonomi (NPV, IRR, payback, LCOE) adalah ilustrasi berdasarkan asumsi tarif dan biaya yang tercantum, bukan penawaran vendor. Verifikasi hasil ini dengan surveyor atau installer berkualifikasi sebelum mengambil keputusan pembelian atau pembangunan.</p>
+        </div>
+      </section>
+
+      <!-- DISPATCH PROFILE (24-HOUR, FROM SIMULATION) -->
+      <section class="bg-bgcard border border-slate-200 rounded-xl p-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div>
+            <span id="sec04-title" class="text-xs font-sans uppercase tracking-wider text-bess font-semibold">PROFIL DISPATCH 24 JAM</span>
+            <p id="sec04-desc" class="text-xs text-slate-500">Profil pembangkitan PV, pengisian/pengosongan BESS, dan pemangkasan beban puncak (Peak Shaving)</p>
+          </div>
+          <div id="dispatch-legend" class="flex flex-wrap items-center gap-4 text-xs font-sans">
+            <span id="legend-pv" data-series="pv" class="legend-toggle flex items-center gap-1.5 cursor-pointer select-none" title="Klik untuk sembunyikan/tampilkan"><span class="w-2.5 h-2.5 rounded-full bg-[#D97706] inline-block"></span><span data-i18n="legendPv">Solar PV (kW)</span></span>
+            <span id="legend-soc" data-series="soc" class="legend-toggle flex items-center gap-1.5 cursor-pointer select-none" title="Klik untuk sembunyikan/tampilkan"><span class="w-2.5 h-2.5 rounded-full bg-bess inline-block"></span><span data-i18n="legendSoc">BESS SoC (%)</span></span>
+            <span id="legend-load" data-series="load" class="legend-toggle flex items-center gap-1.5 cursor-pointer select-none" title="Klik untuk sembunyikan/tampilkan"><span class="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block"></span><span data-i18n="legendLoad">Beban Site (kW)</span></span>
+            <span id="legend-grid-import" data-series="grid" class="legend-toggle hidden flex items-center gap-1.5 cursor-pointer select-none" title="Klik untuk sembunyikan/tampilkan"><span class="w-2.5 h-2.5 rounded-full bg-[#BB1326] inline-block"></span><span data-i18n="legendGridImport">Impor Grid (kW)</span></span>
+            <span id="legend-battery" data-series="batt" class="legend-toggle hidden flex items-center gap-1.5 cursor-pointer select-none" title="Klik untuk sembunyikan/tampilkan"><span class="w-2.5 h-2.5 rounded-full bg-[#16A34A] inline-block"></span><span data-i18n="legendBattery">Baterai (kW)</span></span>
+          </div>
+        </div>
+        <div class="w-full h-36 relative">
+          <canvas id="dispatch-chart" class="w-full h-full"></canvas>
+          <div id="dispatch-tooltip" class="hidden absolute z-10 pointer-events-none bg-slate-800 text-white text-xs rounded-md px-2.5 py-2 shadow-lg whitespace-nowrap"></div>
+          <div id="dispatch-empty" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 rounded-lg bg-slate-50">
+            <p class="text-sm text-slate-500" data-i18n="sec04Empty">Belum ada simulasi. Jalankan simulasi detail di atas untuk melihat profil dispatch 24 jam.</p>
+            <button id="dispatch-empty-run" class="text-xs font-semibold bg-[#12579B] text-white rounded-md px-3 py-1.5 hover:bg-[#0e467d]" data-i18n="sec04EmptyBtn">Jalankan Simulasi Detail</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- LOGIN MODAL -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+      <div class="flex items-start justify-between gap-2">
+        <h2 class="text-sm font-sans font-bold text-slate-900" data-i18n="authTitle">Masuk untuk simulasi detail</h2>
+        <button id="auth-close" class="text-slate-400 hover:text-slate-700 text-lg leading-none px-1" aria-label="Close">×</button>
+      </div>
+      <p id="auth-modal-note" class="text-xs font-sans text-slate-500 mt-1 hidden"></p>
+      <p id="auth-not-configured" class="hidden text-xs font-sans text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3" data-i18n="authNotConfigured">Login belum disiapkan. Hubungi pemilik situs.</p>
+      <div id="auth-form" class="mt-3 flex flex-col gap-2">
+        <input id="auth-email" type="email" autocomplete="email" placeholder="Email" class="text-sm font-sans border border-slate-300 rounded-lg px-3 py-2 w-full focus:outline-none focus:border-brand" />
+        <input id="auth-password" type="password" autocomplete="current-password" placeholder="Kata sandi" data-i18n-placeholder="authPasswordPlaceholder" class="text-sm font-sans border border-slate-300 rounded-lg px-3 py-2 w-full focus:outline-none focus:border-brand" />
+        <p id="auth-error" class="hidden text-xs font-sans text-[#BB1326]"></p>
+        <button id="auth-signin" class="mt-1 px-3 py-2 rounded-lg bg-[#12579B] text-white text-sm font-sans font-semibold hover:bg-[#0e467d] transition disabled:opacity-50" data-i18n="authSignIn">Masuk</button>
+        <button id="auth-register" class="px-3 py-2 rounded-lg bg-white text-brand text-sm font-sans font-semibold border border-brand hover:bg-brand/5 transition disabled:opacity-50" data-i18n="authRegister">Daftar akun baru</button>
+        <div class="flex items-center gap-2 my-1">
+          <span class="flex-1 border-t border-slate-200"></span>
+          <span class="text-xs font-sans text-slate-400" data-i18n="authOr">atau</span>
+          <span class="flex-1 border-t border-slate-200"></span>
+        </div>
+        <button id="auth-google" class="px-3 py-2 rounded-lg bg-white text-slate-700 text-sm font-sans font-semibold border border-slate-300 hover:border-slate-400 transition disabled:opacity-50" data-i18n="authGoogle">Masuk dengan Google</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK (compat builds, untuk login) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="js/firebase-config.js?v=3"></script>
+  <!-- Modular JS Scripts -->
+  <script src="js/energy-model.js?v=10"></script>
+  <script src="js/solar.js?v=7"></script>
+  <script src="js/scene3d.js?v=11"></script>
+  <script src="js/shading.js?v=8"></script>
+  <script src="js/i18n.js?v=22"></script>
+  <script src="js/main.js?v=22"></script>
+</body>
+</html>

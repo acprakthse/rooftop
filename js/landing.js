@@ -1,11 +1,11 @@
 // landing.js
 // Logika landing page rooftop.ardiancandra.com: login Firebase + tombol
-// ajakan (CTA) yang mengarah ke halaman perhitungan (app.html).
+// ajakan (CTA) yang mengarah ke halaman perhitungan (/app).
 //
 // Alur: pengunjung membaca landing, klik CTA -> kalau belum login, modal
-// login terbuka; begitu login berhasil, browser pindah ke app.html.
-// Kalau sudah login, CTA langsung membuka app.html. Sesi login tersimpan
-// per origin, jadi app.html langsung mengenali pengguna yang sama.
+// login terbuka; begitu login berhasil, browser pindah ke /app.
+// Kalau sudah login, CTA langsung membuka /app. Sesi login tersimpan
+// per origin, jadi /app langsung mengenali pengguna yang sama.
 // Blok auth di sini disengaja mirip dengan yang di main.js (id elemen,
 // kunci i18n, dan perilaku pill kuota sama), supaya kedua halaman konsisten.
 
@@ -139,7 +139,7 @@ async function doEmailAuth(isRegister) {
     if (isRegister) await firebase.auth().createUserWithEmailAndPassword(email, password);
     else await firebase.auth().signInWithEmailAndPassword(email, password);
     closeAuthModal();
-    window.location.href = 'app.html';
+    window.location.href = '/app';
   } catch (e) {
     showErr(authErrorMessage(e.code));
   } finally {
@@ -154,7 +154,7 @@ async function doGoogleAuth() {
     const provider = new firebase.auth.GoogleAuthProvider();
     await firebase.auth().signInWithPopup(provider);
     closeAuthModal();
-    window.location.href = 'app.html';
+    window.location.href = '/app';
   } catch (e) {
     if (err) { err.textContent = authErrorMessage(e.code); err.classList.remove('hidden'); }
   } finally {
@@ -163,7 +163,7 @@ async function doGoogleAuth() {
 }
 
 function onCtaClick() {
-  if (authUser) window.location.href = 'app.html';
+  if (authUser) window.location.href = '/app';
   else openAuthModal('authNeedLogin');
 }
 
@@ -177,7 +177,7 @@ function initAuth() {
   const logoutBtn = document.getElementById('auth-logout');
   if (logoutBtn) logoutBtn.addEventListener('click', async () => {
     try { await firebase.auth().signOut(); } catch (e) { /* abaikan */ }
-    window.location.href = 'index.html';
+    window.location.href = '/';
   });
   const signinBtn = document.getElementById('auth-signin');
   if (signinBtn) signinBtn.addEventListener('click', () => doEmailAuth(false));

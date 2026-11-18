@@ -1,5 +1,5 @@
 // bayar.js
-// Logika halaman pembayaran (bayar.html): ringkasan pesanan + Midtrans Snap.
+// Logika halaman pembayaran (/bayar): ringkasan pesanan + Midtrans Snap.
 // Paket dibaca dari ?paket= (satuan/pack5/pack10). Harga di sini HANYA
 // untuk tampilan; harga yang ditagihkan selalu dari katalog backend.
 // Alur: klik Bayar -> POST /payment/create (dapat Snap token) ->
@@ -315,7 +315,7 @@ function initAuth() {
   const logoutBtn = document.getElementById('auth-logout');
   if (logoutBtn) logoutBtn.addEventListener('click', async () => {
     try { await firebase.auth().signOut(); } catch (e) { /* abaikan */ }
-    window.location.href = 'index.html';
+    window.location.href = '/';
   });
   const signinBtn = document.getElementById('auth-signin');
   if (signinBtn) signinBtn.addEventListener('click', () => doEmailAuth(false));

@@ -228,7 +228,7 @@ function initAuth() {
   const logoutBtn = document.getElementById('auth-logout');
   if (logoutBtn) logoutBtn.addEventListener('click', async () => {
     try { await firebase.auth().signOut(); } catch (e) { /* abaikan */ }
-    window.location.href = 'index.html';
+    window.location.href = '/';
   });
   const signinBtn = document.getElementById('auth-signin');
   if (signinBtn) signinBtn.addEventListener('click', () => doEmailAuth(false));
