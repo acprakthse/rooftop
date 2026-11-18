@@ -74,3 +74,40 @@ span[id^="val-"],
 span[id^="kpi-"] {
   font-variant-numeric: tabular-nums;
 }
+
+/* Tombol sudut terpotong (chamfer) ala OMICRON. --cut adalah warna
+   latar di belakang tombol (dipakai segitiga pemotong sudut). Dipakai
+   di landing, paket, dan pembayaran. */
+.btn-chamfer {
+  position: relative;
+  border-radius: 10px;
+  --cut: #11538F;
+}
+.btn-chamfer::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-bottom: 16px solid var(--cut);
+  border-left: 16px solid transparent;
+  z-index: 1;
+}
+.btn-chamfer::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-bottom: 21px solid #BB1326;
+  border-left: 21px solid transparent;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 0;
+}
+.btn-chamfer:hover::before { opacity: 1; }
+.btn-chamfer-sm { border-radius: 6px; }
+.btn-chamfer-sm::after { border-bottom-width: 9px; border-left-width: 9px; }
+.btn-chamfer-sm::before { border-bottom-width: 12px; border-left-width: 12px; }
