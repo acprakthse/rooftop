@@ -6,6 +6,6 @@
 // true = produksi (uang asli). Backend membaca env
 // MIDTRANS_IS_PRODUCTION sendiri; kedua sisi harus sama.
 window.MidtransConfig = {
-  clientKey: 'PASTE-CLIENT-KEY',
-  isProduction: false
+  clientKey: 'Mid-client-E4PDwIrEw6Yb9jtz',
+  isProduction: true
 };
