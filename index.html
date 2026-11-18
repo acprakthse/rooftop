@@ -34,6 +34,69 @@
   <link rel="stylesheet" href="css/style.css?v=8" />
   <link rel="icon" type="image/x-icon" href="assets/favicon.ico?v=1" />
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=1" />
+  <!-- Animasi hero ala OMICRON StationScout (diamati langsung 18 Nov 2026):
+       garis jaringan statis + satu pulsa kuning berjalan di sepanjang garis;
+       monitor blur-to-sharp saat load lalu diam (tanpa float/parallax);
+       tombol kuning sudut terpotong (chamfer) + segitiga merah saat hover.
+       Tidak ada animasi reveal saat scroll (OMICRON juga tidak punya). -->
+  <style>
+    /* Pulsa kuning: strip pendek berjalan di sepanjang garis, lalu hilang
+       sejenak sebelum muncul lagi (dasharray lebih panjang dari path). */
+    .hero-pulse {
+      stroke-dasharray: 80 2920;
+      animation: hero-pulse-travel 36s linear infinite;
+    }
+    .hero-pulse-late { animation-delay: -18s; }
+    @keyframes hero-pulse-travel {
+      from { stroke-dashoffset: 0; }
+      to { stroke-dashoffset: -3000; }
+    }
+    /* Monitor: blur-to-sharp saat halaman dimuat (1,2 dtk), lalu diam. */
+    .monitor-in { animation: monitor-in 1.2s ease-out both; }
+    @keyframes monitor-in {
+      from { opacity: 0; filter: blur(10px); transform: scale(0.985); }
+      to { opacity: 1; filter: blur(0); transform: scale(1); }
+    }
+    /* Tombol sudut terpotong (chamfer) ala OMICRON. --cut adalah warna
+       latar di belakang tombol (dipakai segitiga pemotong sudut). */
+    .btn-chamfer {
+      position: relative;
+      border-radius: 10px;
+      --cut: #11538F;
+    }
+    .btn-chamfer::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 0;
+      height: 0;
+      border-bottom: 16px solid var(--cut);
+      border-left: 16px solid transparent;
+      z-index: 1;
+    }
+    .btn-chamfer::before {
+      content: '';
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 0;
+      height: 0;
+      border-bottom: 21px solid #BB1326;
+      border-left: 21px solid transparent;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      z-index: 0;
+    }
+    .btn-chamfer:hover::before { opacity: 1; }
+    .btn-chamfer-sm { border-radius: 6px; }
+    .btn-chamfer-sm::after { border-bottom-width: 9px; border-left-width: 9px; }
+    .btn-chamfer-sm::before { border-bottom-width: 12px; border-left-width: 12px; }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-pulse, .monitor-in { animation: none; }
+      .monitor-in { opacity: 1; filter: none; transform: none; }
+    }
+  </style>
 </head>
 <body class="bg-bgdeep text-slate-800 font-sans antialiased selection:bg-solar selection:text-slate-950 min-h-screen flex flex-col">
 
@@ -56,7 +119,7 @@
         <button id="language-toggle" class="text-xs font-sans px-2.5 py-1.5 rounded border border-slate-300 bg-bgpanel text-slate-700 hover:border-solar transition">
           <span data-i18n="language">Bahasa</span>: <span id="language-label" class="text-brand font-bold">Indonesia</span>
         </button>
-        <button id="auth-btn" class="text-xs font-sans px-2.5 py-1.5 rounded bg-[#12579B] text-white font-semibold hover:bg-[#0e467d] transition" data-i18n="authLogin">Masuk</button>
+        <button id="auth-btn" class="btn-chamfer btn-chamfer-sm text-xs font-sans px-2.5 py-1.5 bg-[#12579B] text-white font-semibold hover:bg-[#0e467d] transition" style="--cut:#FFFFFF" data-i18n="authLogin">Masuk</button>
         <span id="auth-user" class="hidden items-center gap-2 text-xs font-sans">
           <span id="auth-user-label" class="text-slate-700 font-semibold max-w-[140px] truncate"></span>
           <span id="auth-quota-pill" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-full font-bold" style="background:#F5E214;color:#0f172a">
@@ -71,23 +134,116 @@
 
   <main class="flex-1">
 
-    <!-- HERO -->
-    <section class="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
-      <div class="grid lg:grid-cols-2 gap-10 items-center">
-        <div>
-          <p class="text-xs font-sans font-bold tracking-widest text-brand" data-i18n="landHeroEyebrow">3D ROOFTOP PV &amp; BESS ENGINEERING SUITE</p>
-          <h1 class="mt-3 text-4xl sm:text-5xl font-sans font-bold tracking-tight text-slate-900 leading-tight" data-i18n="landHeroTitle">Kapasitas PLTS atap tidak boleh asal tebak.</h1>
-          <p class="mt-4 text-base sm:text-lg font-sans text-slate-600 leading-relaxed" data-i18n="landHeroSub">Terlalu kecil, tagihan nyaris tidak turun. Terlalu besar, modal terbuang dan energi surplus terbuang percuma. Ukuran yang tepat hanya didapat dari perhitungan: bentuk atap, bayangan, profil beban, dan ekonomi, semuanya dihitung di sini.</p>
-          <div class="mt-7 flex flex-wrap items-center gap-3">
-            <button class="js-cta-main px-5 py-3 rounded-xl bg-[#12579B] text-white text-sm font-sans font-semibold hover:bg-[#0e467d] transition">Mulai Simulasi Detail</button>
-            <a href="#cara-kerja" class="px-5 py-3 rounded-xl bg-white text-brand text-sm font-sans font-semibold border border-brand hover:bg-brand/5 transition" data-i18n="landCtaHow">Lihat Cara Kerja</a>
+    <!-- HERO (biru, ala OMICRON: garis jaringan + pulsa kuning berjalan) -->
+    <section class="relative overflow-hidden" style="background:linear-gradient(180deg,#12579B 0%,#0F4E8D 100%)">
+      <!-- Garis jaringan: statis, tipis, putih pucat -->
+      <svg class="absolute inset-0 w-full h-full" viewBox="0 0 1200 600" preserveAspectRatio="none" aria-hidden="true">
+        <g fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.22">
+          <path d="M-20 120 C 250 60, 500 180, 760 110 S 1150 60, 1240 130" />
+          <path d="M-20 420 C 220 360, 480 480, 740 400 S 1120 350, 1240 430" />
+          <path d="M850 -20 C 900 150, 820 350, 900 620" />
+          <path d="M-20 560 C 300 500, 700 600, 1240 520" />
+        </g>
+        <!-- Pulsa kuning berjalan di sepanjang dua garis -->
+        <g fill="none" stroke="#F5E214" stroke-width="2.5" stroke-linecap="round">
+          <path class="hero-pulse" pathLength="1000" d="M-20 120 C 250 60, 500 180, 760 110 S 1150 60, 1240 130" />
+          <path class="hero-pulse hero-pulse-late" pathLength="1000" d="M-20 420 C 220 360, 480 480, 740 400 S 1120 350, 1240 430" />
+        </g>
+      </svg>
+      <div class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+        <div class="grid lg:grid-cols-2 gap-10 items-center">
+          <div>
+            <p class="text-xs font-sans font-bold tracking-widest text-solar" data-i18n="landHeroEyebrow">3D ROOFTOP PV &amp; BESS ENGINEERING SUITE</p>
+            <h1 class="mt-3 text-4xl sm:text-5xl font-sans font-bold tracking-tight text-white leading-tight" data-i18n="landHeroTitle">Kapasitas PLTS atap tidak boleh asal tebak.</h1>
+            <p class="mt-4 text-base sm:text-lg font-sans text-white/85 leading-relaxed" data-i18n="landHeroSub">Terlalu kecil, tagihan nyaris tidak turun. Terlalu besar, modal terbuang dan energi surplus terbuang percuma. Ukuran yang tepat hanya didapat dari perhitungan: bentuk atap, bayangan, profil beban, dan ekonomi, semuanya dihitung di sini.</p>
+            <!-- 6 fitur mini (judul kuning, isi putih), 3 kolom x 2 baris -->
+            <div class="mt-8 grid sm:grid-cols-3 gap-x-6 gap-y-5">
+              <div>
+                <h3 class="text-sm font-sans font-bold text-solar" data-i18n="landFeat1Title">Bayangan dari bentuk atap</h3>
+                <p class="mt-1 text-sm font-sans text-white/80 leading-relaxed" data-i18n="landFeat1Body">Raycasting 3D mengukur bayangan tiap modul sepanjang tahun, termasuk dari halangan di atapmu.</p>
+              </div>
+              <div>
+                <h3 class="text-sm font-sans font-bold text-solar" data-i18n="landFeat2Title">Simulasi per lereng</h3>
+                <p class="mt-1 text-sm font-sans text-white/80 leading-relaxed" data-i18n="landFeat2Body">Setiap sisi atap dihitung terpisah sesuai arah hadap dan kemiringannya, bukan dirata-rata.</p>
+              </div>
+              <div>
+                <h3 class="text-sm font-sans font-bold text-solar" data-i18n="landFeat3Title">Dispatch baterai optimal</h3>
+                <p class="mt-1 text-sm font-sans text-white/80 leading-relaxed" data-i18n="landFeat3Body">Pengisian dan pengosongan baterai dioptimasi jam per jam untuk memaksimalkan pemakaian energi sendiri, tanpa ekspor ke grid.</p>
+              </div>
+              <div>
+                <h3 class="text-sm font-sans font-bold text-solar" data-i18n="landFeat4Title">Profil beban fleksibel</h3>
+                <p class="mt-1 text-sm font-sans text-white/80 leading-relaxed" data-i18n="landFeat4Body">Pakai profil otomatis, isi manual, atau unggah data beban 8.760 jam milikmu sendiri.</p>
+              </div>
+              <div>
+                <h3 class="text-sm font-sans font-bold text-solar" data-i18n="landFeat5Title">Data cuaca nyata</h3>
+                <p class="mt-1 text-sm font-sans text-white/80 leading-relaxed" data-i18n="landFeat5Body">Data iklim tahun tipikal untuk Jakarta, Bali, Kepulauan Riau, dan Oskarshamn, atau unggah file EPW sendiri.</p>
+              </div>
+              <div>
+                <h3 class="text-sm font-sans font-bold text-solar" data-i18n="landFeat6Title">Ekonomi lengkap</h3>
+                <p class="mt-1 text-sm font-sans text-white/80 leading-relaxed" data-i18n="landFeat6Body">CAPEX terperinci, NPV, IRR, payback, LCOE, dan rasio manfaat-biaya, semua dalam rupiah.</p>
+              </div>
+            </div>
+            <div class="mt-8 flex flex-wrap items-center gap-4">
+              <button class="js-cta-main btn-chamfer px-5 py-3 bg-solar text-slate-900 text-sm font-sans font-semibold transition">Mulai Simulasi Detail</button>
+              <a href="#cara-kerja" class="inline-flex items-center gap-1.5 text-sm font-sans font-semibold text-solar hover:underline underline-offset-4" data-i18n="landCtaHow">Lihat Cara Kerja</a>
+            </div>
+            <p class="mt-4 text-sm font-sans text-white/60" data-i18n="landHeroNote">3 simulasi detail gratis per akun · Tanpa instalasi, langsung dari browser</p>
           </div>
-          <p class="mt-4 text-sm font-sans text-slate-500" data-i18n="landHeroNote">3 simulasi detail gratis per akun · Tanpa instalasi, langsung dari browser</p>
-        </div>
-        <!-- SLOT ASET 1 (hero): ganti div placeholder ini dengan <img src="assets/hero.png" ...> saat gambar sudah diupload -->
-        <div class="aspect-[4/3] rounded-2xl border-2 border-dashed border-slate-300 bg-bgpanel flex flex-col items-center justify-center gap-3 p-6 text-center">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
-          <p class="text-sm font-sans text-slate-400" data-i18n="landHeroImg">Ilustrasi: model atap 3D (gambar menyusul)</p>
+          <!-- Monitor dummy: layar berisi tiruan dashboard aplikasi (CSS saja).
+               SLOT ASET 1 (hero): ganti div dummy-dashboard di dalam layar
+               dengan <img src="assets/hero.png" class="w-full rounded-lg" ...>
+               saat gambar sudah diupload. -->
+          <div class="monitor-in">
+            <div class="rounded-xl bg-slate-900 p-2 shadow-2xl">
+              <div class="dummy-dashboard rounded-lg bg-white overflow-hidden">
+                <div class="flex items-center gap-1.5 bg-[#12579B] px-3 py-2">
+                  <span class="w-2 h-2 rounded-full bg-white/70"></span>
+                  <span class="w-2 h-2 rounded-full bg-white/70"></span>
+                  <span class="w-2 h-2 rounded-full bg-solar"></span>
+                  <span class="ml-2 text-[10px] font-sans font-semibold text-white">3D Rooftop PV &amp; BESS</span>
+                </div>
+                <div class="p-3 sm:p-4">
+                  <svg viewBox="0 0 320 130" class="w-full rounded-lg bg-[#E8EEF4]" aria-hidden="true">
+                    <polygon points="30,115 160,30 290,115" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2" />
+                    <polygon points="160,30 30,115 95,115 160,72" fill="#12579B" opacity="0.55" />
+                    <polygon points="160,30 290,115 225,115 160,72" fill="#12579B" opacity="0.85" />
+                    <g stroke="#FFFFFF" stroke-width="1.5" opacity="0.8">
+                      <path d="M122 62 L60 115" />
+                      <path d="M198 62 L260 115" />
+                      <path d="M95 115 L225 115" />
+                    </g>
+                    <circle cx="285" cy="22" r="12" fill="#F5E214" />
+                    <rect x="20" y="115" width="280" height="6" rx="3" fill="#CBD5E1" />
+                  </svg>
+                  <div class="mt-3 grid grid-cols-3 gap-2">
+                    <div class="rounded-lg bg-[#F2F4F5] px-2 py-2 text-center">
+                      <p class="text-xs font-sans font-bold text-slate-900">46,4 kWp</p>
+                      <p class="text-[10px] font-sans text-slate-500">PV</p>
+                    </div>
+                    <div class="rounded-lg bg-[#F2F4F5] px-2 py-2 text-center">
+                      <p class="text-xs font-sans font-bold text-slate-900">57,4 MWh</p>
+                      <p class="text-[10px] font-sans text-slate-500">per tahun</p>
+                    </div>
+                    <div class="rounded-lg bg-[#F2F4F5] px-2 py-2 text-center">
+                      <p class="text-xs font-sans font-bold text-slate-900">97,5%</p>
+                      <p class="text-[10px] font-sans text-slate-500">dipakai sendiri</p>
+                    </div>
+                  </div>
+                  <div class="mt-3 flex items-end gap-1.5 h-12">
+                    <div class="flex-1 rounded-t bg-[#12579B]" style="height:45%"></div>
+                    <div class="flex-1 rounded-t bg-[#12579B]" style="height:65%"></div>
+                    <div class="flex-1 rounded-t bg-[#12579B]" style="height:55%"></div>
+                    <div class="flex-1 rounded-t bg-solar" style="height:90%"></div>
+                    <div class="flex-1 rounded-t bg-[#12579B]" style="height:70%"></div>
+                    <div class="flex-1 rounded-t bg-[#12579B]" style="height:50%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="mx-auto w-16 h-8 bg-slate-800" style="clip-path:polygon(20% 0, 80% 0, 100% 100%, 0 100%)"></div>
+            <div class="mx-auto w-48 h-2.5 bg-slate-800 rounded-full"></div>
+            <p class="mt-3 text-center text-xs font-sans text-white/60" data-i18n="landHeroImg">Ilustrasi: model atap 3D (gambar menyusul)</p>
+          </div>
         </div>
       </div>
     </section>
@@ -155,65 +311,12 @@
       </div>
     </section>
 
-    <!-- FEATURES -->
-    <section class="bg-bgpanel">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-16">
-        <div class="max-w-2xl mx-auto text-center">
-          <h2 class="text-2xl sm:text-3xl font-sans font-bold tracking-tight text-slate-900" data-i18n="landFeatTitle">Yang dihitung di dalamnya</h2>
-        </div>
-        <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          <div class="bg-white rounded-2xl border border-slate-200 p-6">
-            <span class="inline-flex w-10 h-10 rounded-full bg-brand/10 text-brand items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.9 4.9l1.4 1.4"/><path d="M17.7 17.7l1.4 1.4"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M4.9 19.1l1.4-1.4"/><path d="M17.7 6.3l1.4-1.4"/></svg>
-            </span>
-            <h3 class="mt-4 text-base font-sans font-bold text-slate-900" data-i18n="landFeat1Title">Bayangan dari bentuk atap</h3>
-            <p class="mt-2 text-sm font-sans text-slate-600 leading-relaxed" data-i18n="landFeat1Body">Raycasting 3D mengukur bayangan tiap modul sepanjang tahun, termasuk dari halangan di atapmu.</p>
-          </div>
-          <div class="bg-white rounded-2xl border border-slate-200 p-6">
-            <span class="inline-flex w-10 h-10 rounded-full bg-brand/10 text-brand items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>
-            </span>
-            <h3 class="mt-4 text-base font-sans font-bold text-slate-900" data-i18n="landFeat2Title">Simulasi per lereng</h3>
-            <p class="mt-2 text-sm font-sans text-slate-600 leading-relaxed" data-i18n="landFeat2Body">Setiap sisi atap dihitung terpisah sesuai arah hadap dan kemiringannya, bukan dirata-rata.</p>
-          </div>
-          <div class="bg-white rounded-2xl border border-slate-200 p-6">
-            <span class="inline-flex w-10 h-10 rounded-full bg-brand/10 text-brand items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="17" height="9" rx="2"/><path d="M22 11v3"/><path d="M6 11v3"/><path d="M10 11v3"/></svg>
-            </span>
-            <h3 class="mt-4 text-base font-sans font-bold text-slate-900" data-i18n="landFeat3Title">Dispatch baterai optimal</h3>
-            <p class="mt-2 text-sm font-sans text-slate-600 leading-relaxed" data-i18n="landFeat3Body">Pengisian dan pengosongan baterai dioptimasi jam per jam untuk memaksimalkan pemakaian energi sendiri, tanpa ekspor ke grid.</p>
-          </div>
-          <div class="bg-white rounded-2xl border border-slate-200 p-6">
-            <span class="inline-flex w-10 h-10 rounded-full bg-brand/10 text-brand items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M2 20h20"/></svg>
-            </span>
-            <h3 class="mt-4 text-base font-sans font-bold text-slate-900" data-i18n="landFeat4Title">Profil beban fleksibel</h3>
-            <p class="mt-2 text-sm font-sans text-slate-600 leading-relaxed" data-i18n="landFeat4Body">Pakai profil otomatis, isi manual, atau unggah data beban 8.760 jam milikmu sendiri.</p>
-          </div>
-          <div class="bg-white rounded-2xl border border-slate-200 p-6">
-            <span class="inline-flex w-10 h-10 rounded-full bg-brand/10 text-brand items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.7 1.6A4 4 0 0 0 7 19h10.5z"/></svg>
-            </span>
-            <h3 class="mt-4 text-base font-sans font-bold text-slate-900" data-i18n="landFeat5Title">Data cuaca nyata</h3>
-            <p class="mt-2 text-sm font-sans text-slate-600 leading-relaxed" data-i18n="landFeat5Body">Data iklim tahun tipikal untuk Jakarta, Bali, Kepulauan Riau, dan Oskarshamn, atau unggah file EPW sendiri.</p>
-          </div>
-          <div class="bg-white rounded-2xl border border-slate-200 p-6">
-            <span class="inline-flex w-10 h-10 rounded-full bg-brand/10 text-brand items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.8-1-2.2-1.3-3.4-.8-1.4.6-2 2.2-.9 3.3 1 1 2.4 1 3.4 1.8 1.2 1 1 2.9-.7 3.4-1.4.4-2.9 0-3.8-1"/><path d="M12 6v2"/><path d="M12 16v2"/></svg>
-            </span>
-            <h3 class="mt-4 text-base font-sans font-bold text-slate-900" data-i18n="landFeat6Title">Ekonomi lengkap</h3>
-            <p class="mt-2 text-sm font-sans text-slate-600 leading-relaxed" data-i18n="landFeat6Body">CAPEX terperinci, NPV, IRR, payback, LCOE, dan rasio manfaat-biaya, semua dalam rupiah.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- FREE TRIAL CTA -->
     <section class="max-w-6xl mx-auto px-4 sm:px-6 py-14 sm:py-16">
       <div class="rounded-2xl bg-solar px-6 py-10 sm:px-10 text-center">
         <h2 class="text-2xl sm:text-3xl font-sans font-bold tracking-tight text-slate-900" data-i18n="landFreeTitle">Mulai gratis</h2>
         <p class="mt-3 text-base font-sans text-slate-800 max-w-xl mx-auto" data-i18n="landFreeBody">Setiap akun mendapat 3 simulasi detail gratis. Coba dulu, putuskan setelah melihat angkanya.</p>
-        <button class="js-cta-main mt-6 px-5 py-3 rounded-xl bg-slate-900 text-white text-sm font-sans font-semibold hover:bg-slate-800 transition">Mulai Simulasi Detail</button>
+        <button class="js-cta-main btn-chamfer mt-6 px-5 py-3 bg-slate-900 text-white text-sm font-sans font-semibold transition" style="--cut:#F5E214">Mulai Simulasi Detail</button>
       </div>
     </section>
 
