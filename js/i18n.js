@@ -342,6 +342,8 @@ const I18n = {
       landFreeBody: 'Setiap akun mendapat 3 simulasi detail gratis. Coba dulu, putuskan setelah melihat angkanya.',
       landPkgTitle: 'Paket simulasi',
       landFooterNote: 'Dibuat oleh Ardian Candra Pratama',
+      waContact: 'Hubungi kami via WhatsApp',
+      bayHelp: 'Butuh bantuan?',
       // Konfirmasi sebelum simulasi + peringatan tinggalkan halaman + pengaturan JSON
       confirmCancel: 'Batal',
       runConfirmTitle: 'Jalankan simulasi?',
@@ -693,6 +695,8 @@ const I18n = {
       landFreeBody: 'Every account gets 3 free detailed simulations. Try it first, decide after seeing the numbers.',
       landPkgTitle: 'Simulation packages',
       landFooterNote: 'Built by Ardian Candra Pratama',
+      waContact: 'Contact us on WhatsApp',
+      bayHelp: 'Need help?',
       // Pre-run confirmation + leave-page warning + JSON settings
       confirmCancel: 'Cancel',
       runConfirmTitle: 'Run simulation?',
