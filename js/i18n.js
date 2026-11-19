@@ -341,7 +341,25 @@ const I18n = {
       landFreeTitle: 'Mulai gratis',
       landFreeBody: 'Setiap akun mendapat 3 simulasi detail gratis. Coba dulu, putuskan setelah melihat angkanya.',
       landPkgTitle: 'Paket simulasi',
-      landFooterNote: 'Dibuat oleh Ardian Candra Pratama'
+      landFooterNote: 'Dibuat oleh Ardian Candra Pratama',
+      // Konfirmasi sebelum simulasi + peringatan tinggalkan halaman + pengaturan JSON
+      confirmCancel: 'Batal',
+      runConfirmTitle: 'Jalankan simulasi?',
+      runConfirmBody: 'Simulasi ini akan memotong 1 kuota simulasi Anda (sisa kuota: {n}). Pastikan semua data input sudah benar.',
+      runConfirmBodyNoQuota: 'Pastikan semua data input sudah benar sebelum menjalankan simulasi.',
+      runConfirmOk: 'Ya, jalankan',
+      leaveConfirmTitle: 'Tinggalkan halaman?',
+      leaveConfirmBody: 'Pastikan semua hasil sudah diunduh. Setelah meninggalkan halaman ini, Anda tidak dapat mengakses data hasil simulasi ini lagi.',
+      leaveConfirmOk: 'Ya, tinggalkan',
+      leaveConfirmCancel: 'Tetap di halaman',
+      settingsSave: 'Simpan Pengaturan (JSON)',
+      settingsLoad: 'Muat Pengaturan (JSON)',
+      settingsSaved: 'Pengaturan diunduh.',
+      settingsLoaded: 'Pengaturan dimuat.',
+      settingsLoadedSkips: 'Pengaturan dimuat; {n} nilai tidak valid dan dilewati.',
+      settingsLoadError: 'File pengaturan tidak dapat dibaca.',
+      settingsNeedEpw: 'File EPW tidak tersimpan dalam pengaturan; unggah ulang file EPW bila diperlukan.',
+      settingsWrongFile: 'Berkas ini bukan pengaturan simulasi Rooftop.'
     },
     en: {
       currency: 'Currency',
@@ -674,7 +692,25 @@ const I18n = {
       landFreeTitle: 'Start free',
       landFreeBody: 'Every account gets 3 free detailed simulations. Try it first, decide after seeing the numbers.',
       landPkgTitle: 'Simulation packages',
-      landFooterNote: 'Built by Ardian Candra Pratama'
+      landFooterNote: 'Built by Ardian Candra Pratama',
+      // Pre-run confirmation + leave-page warning + JSON settings
+      confirmCancel: 'Cancel',
+      runConfirmTitle: 'Run simulation?',
+      runConfirmBody: 'This simulation will use 1 simulation from your quota ({n} remaining). Please make sure all input data is correct.',
+      runConfirmBodyNoQuota: 'Please make sure all input data is correct before running the simulation.',
+      runConfirmOk: 'Yes, run it',
+      leaveConfirmTitle: 'Leave this page?',
+      leaveConfirmBody: 'Make sure all results have been downloaded. Once you leave this page, you will not be able to access this simulation data again.',
+      leaveConfirmOk: 'Yes, leave',
+      leaveConfirmCancel: 'Stay on this page',
+      settingsSave: 'Save Settings (JSON)',
+      settingsLoad: 'Load Settings (JSON)',
+      settingsSaved: 'Settings downloaded.',
+      settingsLoaded: 'Settings loaded.',
+      settingsLoadedSkips: 'Settings loaded; {n} invalid values were skipped.',
+      settingsLoadError: 'Settings file could not be read.',
+      settingsNeedEpw: 'The EPW file is not stored in the settings; re-upload the EPW file if needed.',
+      settingsWrongFile: 'This file is not a Rooftop simulation settings file.'
     }
   },
 

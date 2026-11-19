@@ -227,8 +227,15 @@ function initAuth() {
   if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeAuthModal(); });
   const logoutBtn = document.getElementById('auth-logout');
   if (logoutBtn) logoutBtn.addEventListener('click', async () => {
-    try { await firebase.auth().signOut(); } catch (e) { /* abaikan */ }
-    window.location.href = '/';
+    const doLogout = async () => {
+      try { await firebase.auth().signOut(); } catch (e) { /* abaikan */ }
+      window.location.href = '/';
+    };
+    if (typeof leaveWarnActive === 'function' && leaveWarnActive()) {
+      confirmLeave(doLogout);
+      return;
+    }
+    doLogout();
   });
   const signinBtn = document.getElementById('auth-signin');
   if (signinBtn) signinBtn.addEventListener('click', () => doEmailAuth(false));
@@ -486,8 +493,89 @@ function buildPysamPayload() {
   return payload;
 }
 
+// ---- Modal konfirmasi umum ----
+// Satu modal dipakai dua keperluan: konfirmasi kuota sebelum simulasi
+// dan peringatan meninggalkan halaman hasil. Isi + aksi OK diisi
+// pemanggil lewat showConfirm().
+let confirmCallback = null;
+let confirmOpen = false;
+
+function showConfirm(opts) {
+  if (confirmOpen) return;
+  confirmOpen = true;
+  confirmCallback = opts.onOk || null;
+  document.getElementById('confirm-title').textContent = opts.title;
+  document.getElementById('confirm-body').textContent = opts.body;
+  document.getElementById('confirm-ok').textContent = opts.okText;
+  document.getElementById('confirm-cancel').textContent = opts.cancelText;
+  document.getElementById('confirm-modal').classList.remove('hidden');
+}
+
+function closeConfirm() {
+  confirmOpen = false;
+  confirmCallback = null;
+  document.getElementById('confirm-modal').classList.add('hidden');
+}
+
+function initConfirmModal() {
+  const okBtn = document.getElementById('confirm-ok');
+  if (okBtn) okBtn.addEventListener('click', () => {
+    const cb = confirmCallback;
+    closeConfirm();
+    if (cb) cb();
+  });
+  const cancelBtn = document.getElementById('confirm-cancel');
+  if (cancelBtn) cancelBtn.addEventListener('click', closeConfirm);
+  const modal = document.getElementById('confirm-modal');
+  if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeConfirm(); });
+}
+
+// ---- Peringatan tinggalkan halaman hasil ----
+// Hasil simulasi hanya tersimpan di halaman ini (di memori browser).
+// Selama ada hasil segar yang belum satu pun laporannya diunduh,
+// navigasi keluar (tautan, logout, tutup tab) memunculkan peringatan.
+let resultsDownloaded = false;
+let leavingConfirmed = false;
+
+function leaveWarnActive() {
+  return !leavingConfirmed && !!pysamResult && pysamIsFresh() && !resultsDownloaded;
+}
+
+function confirmLeave(onLeave) {
+  showConfirm({
+    title: I18n.t('leaveConfirmTitle'),
+    body: I18n.t('leaveConfirmBody'),
+    okText: I18n.t('leaveConfirmOk'),
+    cancelText: I18n.t('leaveConfirmCancel'),
+    onOk: () => { leavingConfirmed = true; onLeave(); }
+  });
+}
+
+function initLeaveWarning() {
+  // Tutup tab / refresh / tombol back: dialog bawaan browser
+  // (teksnya tidak bisa diubah, tapi tetap menahan navigasi).
+  window.addEventListener('beforeunload', (e) => {
+    if (leaveWarnActive()) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+  // Tautan dalam aplikasi (logo, Paket): cegat kliknya, tampilkan popup.
+  document.addEventListener('click', (e) => {
+    const a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    const href = a.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('http') || a.hasAttribute('download')) return;
+    if (!leaveWarnActive()) return;
+    e.preventDefault();
+    confirmLeave(() => { window.location.href = href; });
+  });
+}
+
 async function runPysamSimulation() {
-  if (pysamRunning) return;
+  // Tombol Jalankan: validasi dulu, lalu minta konfirmasi (simulasi
+  // memotong kuota), baru jalankan.
+  if (pysamRunning || confirmOpen) return;
   // Bila login sudah disiapkan, simulasi detail mewajibkan login (kuota
   // dihitung per akun). Bila belum disiapkan, simulasi tetap terbuka.
   if (authConfigured && !authUser) {
@@ -495,23 +583,50 @@ async function runPysamSimulation() {
     return;
   }
   const statusEl = document.getElementById('pysam-status');
+  updateAll(); // fresh scene + metrics before validating
+  if (AppState.bessKwh <= 0) {
+    if (statusEl) statusEl.textContent = I18n.t('pysamNoBess');
+    return;
+  }
+  const counts = slopePanelCounts();
+  const totalModules = Object.values(counts).reduce((a, b) => a + b, 0);
+  if (totalModules === 0) {
+    if (statusEl) statusEl.textContent = I18n.t('pysamNoModules');
+    return;
+  }
+  // CSV load mode needs an uploaded file before simulating.
+  if (loadInput.mode === 'csv' && !loadInput.csv) {
+    if (statusEl) statusEl.textContent = I18n.t('loadStatusCsvMissing');
+    return;
+  }
+  // Kuota habis: beri tahu langsung tanpa popup dan tanpa memanggil API.
+  if (authQuota && !authQuota.exempt && Math.max(0, authQuota.total - authQuota.used) <= 0) {
+    if (statusEl) statusEl.textContent = I18n.t('authQuotaOut');
+    return;
+  }
+  const hasQuota = !!(authQuota && !authQuota.exempt);
+  const left = hasQuota ? Math.max(0, authQuota.total - authQuota.used) : 0;
+  showConfirm({
+    title: I18n.t('runConfirmTitle'),
+    body: hasQuota
+      ? I18n.t('runConfirmBody', { n: left })
+      : I18n.t('runConfirmBodyNoQuota'),
+    okText: I18n.t('runConfirmOk'),
+    cancelText: I18n.t('confirmCancel'),
+    onOk: () => { executePysamSimulation(); }
+  });
+}
+
+// Dijalankan setelah user mengonfirmasi popup kuota.
+async function executePysamSimulation() {
+  if (pysamRunning) return;
+  const statusEl = document.getElementById('pysam-status');
   const runBtn = document.getElementById('run-pysam');
   pysamRunning = true;
   renderPysamUI();
   updateAll(); // fresh scene + metrics before building the payload
 
   try {
-    if (AppState.bessKwh <= 0) {
-      if (statusEl) statusEl.textContent = I18n.t('pysamNoBess');
-      return;
-    }
-    const counts = slopePanelCounts();
-    const totalModules = Object.values(counts).reduce((a, b) => a + b, 0);
-    if (totalModules === 0) {
-      if (statusEl) statusEl.textContent = I18n.t('pysamNoModules');
-      return;
-    }
-
     // Shading feeds the per-slope losses: compute it first when missing
     // (updateAll already cleared a stale result).
     if (!shadingResult) {
@@ -523,12 +638,6 @@ async function runPysamSimulation() {
         if (statusEl) statusEl.textContent = I18n.t('shadingNoModules');
         return;
       }
-    }
-
-    // CSV load mode needs an uploaded file before simulating.
-    if (loadInput.mode === 'csv' && !loadInput.csv) {
-      if (statusEl) statusEl.textContent = I18n.t('loadStatusCsvMissing');
-      return;
     }
 
     const payload = buildPysamPayload();
@@ -577,6 +686,7 @@ async function runPysamSimulation() {
     pysamResult = await response.json();
     pysamFingerprint = JSON.stringify(payload);
     pysamQuickMwh = lastMetrics ? lastMetrics.annualMwh : null;
+    resultsDownloaded = false; // hasil baru belum diunduh -> peringatan aktif
     if (pysamResult.quota) {
       authQuota = { used: pysamResult.quota.used, total: pysamResult.quota.total, plan: pysamResult.quota.plan, exempt: !!pysamResult.quota.exempt };
       updateAuthUI();
@@ -662,6 +772,7 @@ function downloadHourlyCsv() {
     lines.push(i + ',' + cols.map((c) => h[c][i]).join(','));
   }
   downloadTextFile('profil-per-jam.csv', lines.join('\n'));
+  resultsDownloaded = true;
   if (statusEl) statusEl.textContent = I18n.t('reportDone');
 }
 
@@ -710,12 +821,273 @@ async function downloadReport(format) {
     const cd = response.headers.get('Content-Disposition') || '';
     const m = /filename="([^"]+)"/.exec(cd);
     downloadBlob(m ? m[1] : 'laporan-simulasi.' + format, blob);
+    resultsDownloaded = true;
     if (statusEl) statusEl.textContent = I18n.t('reportDone');
   } catch (err) {
     if (statusEl) statusEl.textContent = I18n.t('reportError');
   } finally {
     reportRunning = false;
     setReportBusy(false);
+  }
+}
+
+// ---- Pengaturan simulasi: ekspor / impor JSON ----
+// Berkas JSON berisi semua input simulasi (atap, PV, BESS, beban,
+// cuaca, obstacle). Bisa diedit dengan teks editor lalu diunggah
+// kembali untuk simulasi lagi. Isi file EPW tidak ikut tersimpan
+// (terlalu besar); namanya dicatat dan pengguna diminta unggah ulang.
+const SETTINGS_APP = 'rooftop-pv-bess';
+const SETTINGS_VERSION = 1;
+
+function exportSettings() {
+  const statusEl = document.getElementById('settings-status');
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const date = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+  const settings = {
+    _info: I18n.lang === 'id'
+      ? 'Pengaturan simulasi Rooftop PV & BESS. Berkas ini bisa diedit dengan teks editor lalu diunggah kembali lewat tombol Muat Pengaturan. Isi file EPW tidak tersimpan di sini; unggah ulang file EPW bila diperlukan.'
+      : 'Rooftop PV & BESS simulation settings. This file can be edited with a text editor and re-uploaded with the Load Settings button. EPW file contents are not stored here; re-upload the EPW file if needed.',
+    app: SETTINGS_APP,
+    version: SETTINGS_VERSION,
+    exportedAt: now.toISOString(),
+    roof: {
+      type: AppState.roofType,
+      lengthM: AppState.roofLength,
+      widthM: AppState.roofWidth,
+      tiltDeg: AppState.roofTilt,
+      wallHeightM: AppState.wallHeight,
+      setbackM: AppState.roofSetback,
+      orientationDeg: AppState.orientation,
+      disabledSlots: (typeof Scene3D !== 'undefined' && Scene3D.disabledSlots)
+        ? Array.from(Scene3D.disabledSlots) : []
+    },
+    pv: {
+      orientation: AppState.panelOrientation,
+      panelWp: AppState.panelWp,
+      rowGapM: AppState.rowGap,
+      rackTiltDeg: AppState.rackTilt,
+      customModule: AppState.customModule ? {
+        name: AppState.customModule.name,
+        wp: AppState.customModule.wp,
+        lengthM: AppState.customModule.length,
+        widthM: AppState.customModule.width,
+        efficiencyPct: AppState.customModule.efficiency,
+        tempCoeffPctPerC: AppState.customModule.tempCoeff
+      } : null
+    },
+    bess: {
+      chemistry: AppState.bessChemistry,
+      capacityKwh: AppState.bessKwh,
+      powerKw: AppState.bessKw,
+      customBess: customBess ? {
+        name: customBess.name,
+        capacityKwh: customBess.capacityKwh,
+        powerKw: customBess.powerKw,
+        rtePct: Math.round(customBess.rte * 100),
+        dodPct: Math.round(customBess.dod * 100)
+      } : null
+    },
+    load: {
+      mode: loadInput.mode,
+      annualKwh: loadInput.annualKwh,
+      shape: loadInput.shape,
+      va: loadInput.va,
+      billMonthlyRp: loadInput.billMonthly,
+      tariffRpPerKwh: loadInput.tariff,
+      ppjPct: loadInput.ppj,
+      csvFile: loadInput.csv ? loadInput.csv.name : null,
+      csvKw: (loadInput.mode === 'csv' && loadInput.csv) ? loadInput.csv.hours : null
+    },
+    weather: {
+      location: weatherInput.mode === 'epw' ? (weatherInput.prevLocation || AppState.siteLocation) : AppState.siteLocation,
+      epwFile: (weatherInput.mode === 'epw' && weatherInput.epw) ? weatherInput.epw.name : null
+    }
+  };
+  downloadTextFile('pengaturan-simulasi-' + date + '.json', JSON.stringify(settings, null, 2));
+  if (statusEl) statusEl.textContent = I18n.t('settingsSaved');
+}
+
+async function onSettingsFile(file) {
+  const statusEl = document.getElementById('settings-status');
+  try {
+    const text = await readFileAsText(file);
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error(I18n.t('settingsLoadError'));
+    }
+    if (!data || data.app !== SETTINGS_APP || data.version !== SETTINGS_VERSION) {
+      throw new Error(I18n.t('settingsWrongFile'));
+    }
+    const skipped = [];
+    // Angka dalam rentang; kunci yang hilang dibiarkan (pengaturan
+    // parsial boleh), nilai yang ada tapi tidak valid dilewati + dihitung.
+    const num = (obj, key, lo, hi, label) => {
+      const v = obj ? obj[key] : undefined;
+      if (v === undefined || v === null) return null;
+      if (typeof v !== 'number' || !isFinite(v) || v < lo || v > hi) {
+        skipped.push(label);
+        return null;
+      }
+      return v;
+    };
+    const enm = (obj, key, allowed, label) => {
+      const v = obj ? obj[key] : undefined;
+      if (v === undefined || v === null) return null;
+      if (typeof v !== 'string' || allowed.indexOf(v) < 0) {
+        skipped.push(label);
+        return null;
+      }
+      return v;
+    };
+    // Isi kontrol lalu picu event-nya, supaya handler yang sudah ada
+    // (termasuk efek samping seperti menghapus EPW) ikut berjalan.
+    const setInput = (id, value) => {
+      if (value == null) return;
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    const setChange = (id, value) => {
+      if (value == null) return;
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.value = value;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    // Atap
+    const roof = data.roof || {};
+    setInput('roof-type', enm(roof, 'type', ['gable-dual', 'gable-single', 'flat-tilt', 'shed', 'hip'], 'roof.type'));
+    setInput('roof-length', num(roof, 'lengthM', 10, 50, 'roof.lengthM'));
+    setInput('roof-width', num(roof, 'widthM', 8, 32, 'roof.widthM'));
+    setInput('roof-tilt', num(roof, 'tiltDeg', 0, 40, 'roof.tiltDeg'));
+    setInput('wall-height', num(roof, 'wallHeightM', 3, 16, 'roof.wallHeightM'));
+    setInput('roof-setback', num(roof, 'setbackM', 0.3, 2.5, 'roof.setbackM'));
+    setInput('orientation', num(roof, 'orientationDeg', 0, 355, 'roof.orientationDeg'));
+    if (Array.isArray(roof.disabledSlots) && typeof Scene3D !== 'undefined' && Scene3D.disabledSlots) {
+      Scene3D.disabledSlots.clear();
+      roof.disabledSlots.forEach((k) => { if (typeof k === 'string') Scene3D.disabledSlots.add(k); });
+    }
+
+    // PV (modul kustom dulu, karena ia membuat opsi 'custom' di select)
+    const pv = data.pv || {};
+    let customModuleApplied = false;
+    if ('customModule' in pv && pv.customModule) {
+      const cm = pv.customModule;
+      const m = {
+        name: (typeof cm.name === 'string' && cm.name.trim()) || 'Custom',
+        wp: num(cm, 'wp', 50, 1000, 'pv.customModule.wp'),
+        length: num(cm, 'lengthM', 0.5, 3.0, 'pv.customModule.lengthM'),
+        width: num(cm, 'widthM', 0.3, 2.0, 'pv.customModule.widthM'),
+        efficiency: num(cm, 'efficiencyPct', 5, 30, 'pv.customModule.efficiencyPct'),
+        tempCoeff: num(cm, 'tempCoeffPctPerC', -1.0, 0, 'pv.customModule.tempCoeffPctPerC')
+      };
+      if (m.wp != null && m.length != null && m.width != null) {
+        applyCustomModule(m);
+        customModuleApplied = true;
+      } else {
+        skipped.push('pv.customModule');
+      }
+    } else if ('customModule' in pv && pv.customModule === null && AppState.customModule) {
+      clearCustomModule(true);
+    }
+    if (!customModuleApplied) {
+      const wp = num(pv, 'panelWp', 50, 1000, 'pv.panelWp');
+      if (wp != null) {
+        if ([550, 610, 670].indexOf(wp) >= 0) setChange('panel-wp', String(wp));
+        else skipped.push('pv.panelWp');
+      }
+    }
+    setInput('panel-orientation', enm(pv, 'orientation', ['portrait', 'landscape'], 'pv.orientation'));
+    setInput('row-gap', num(pv, 'rowGapM', 0.05, 1.8, 'pv.rowGapM'));
+    setInput('rack-tilt', num(pv, 'rackTiltDeg', 5, 25, 'pv.rackTiltDeg'));
+
+    // BESS (BESS kustom dulu, karena ia membuat opsi 'CUSTOM' di select)
+    const bess = data.bess || {};
+    let customBessApplied = false;
+    if ('customBess' in bess && bess.customBess) {
+      const cb = bess.customBess;
+      const rte = num(cb, 'rtePct', 50, 99, 'bess.customBess.rtePct');
+      const dod = num(cb, 'dodPct', 10, 100, 'bess.customBess.dodPct');
+      const b = {
+        name: (typeof cb.name === 'string' && cb.name.trim()) || 'Custom',
+        capacityKwh: num(cb, 'capacityKwh', 1, 100000, 'bess.customBess.capacityKwh'),
+        powerKw: num(cb, 'powerKw', 1, 10000, 'bess.customBess.powerKw'),
+        rte: rte != null ? rte / 100 : null,
+        dod: dod != null ? dod / 100 : null
+      };
+      if (b.capacityKwh != null && b.powerKw != null && b.rte != null && b.dod != null) {
+        applyCustomBess(b);
+        customBessApplied = true;
+      } else {
+        skipped.push('bess.customBess');
+      }
+    } else if ('customBess' in bess && bess.customBess === null && customBess) {
+      clearCustomBess(true);
+    }
+    if (!customBessApplied) {
+      setChange('bess-chemistry', enm(bess, 'chemistry', ['LFP', 'NAION', 'VRFB'], 'bess.chemistry'));
+      setInput('bess-kwh', num(bess, 'capacityKwh', 0, 500, 'bess.capacityKwh'));
+      setInput('bess-kw', num(bess, 'powerKw', 5, 500, 'bess.powerKw'));
+    }
+
+    // Beban: isi nilai skalar dulu, mode terakhir (handler mode mengisi
+    // otomatis annual saat beralih ke manual bila masih kosong).
+    const load = data.load || {};
+    setInput('load-annual', num(load, 'annualKwh', 1, 1e9, 'load.annualKwh'));
+    setChange('load-shape', enm(load, 'shape', ['commercial', 'office', 'residential', 'flat'], 'load.shape'));
+    if (load.va !== undefined && load.va !== null) {
+      if ([450, 900, 1300, 2200, 3500, 4400, 5500, 7700, 11000, 13000, 16500, 22000, 33000, 41500, 53000, 66000].indexOf(load.va) >= 0) setChange('load-va', String(load.va));
+      else skipped.push('load.va');
+    }
+    setInput('load-bill-amount', num(load, 'billMonthlyRp', 0, 1e12, 'load.billMonthlyRp'));
+    setInput('load-tariff', num(load, 'tariffRpPerKwh', 1, 1e6, 'load.tariffRpPerKwh'));
+    setInput('load-ppj', num(load, 'ppjPct', 0, 30, 'load.ppjPct'));
+    let csvRestored = false;
+    if (Array.isArray(load.csvKw)) {
+      if (load.csvKw.length === 8760 && load.csvKw.every((v) => typeof v === 'number' && isFinite(v) && v >= 0)) {
+        const total = load.csvKw.reduce((a, b) => a + b, 0);
+        loadInput.csv = {
+          name: (typeof load.csvFile === 'string' && load.csvFile) || 'pengaturan.json',
+          hours: load.csvKw,
+          totalKwh: total,
+          peakKw: Math.max.apply(null, load.csvKw)
+        };
+        loadInput.error = null;
+        csvRestored = true;
+      } else {
+        skipped.push('load.csvKw');
+      }
+    }
+    const mode = enm(load, 'mode', ['auto', 'manual', 'bill', 'csv'], 'load.mode');
+    if (mode) {
+      if (mode === 'csv' && !csvRestored && !loadInput.csv) {
+        setChange('load-mode', 'auto');
+        skipped.push('load.mode');
+      } else {
+        setChange('load-mode', mode);
+      }
+    }
+
+    // Cuaca (lokasi TMYx; EPW tidak tersimpan isinya)
+    const weather = data.weather || {};
+    setChange('site-location', enm(weather, 'location', ['jakarta', 'riau', 'oskarshamn', 'bali'], 'weather.location'));
+    const needEpw = typeof weather.epwFile === 'string' && weather.epwFile.length > 0;
+
+    updateAll();
+    if (statusEl) {
+      let msg = skipped.length > 0
+        ? I18n.t('settingsLoadedSkips', { n: skipped.length })
+        : I18n.t('settingsLoaded');
+      if (needEpw) msg += ' ' + I18n.t('settingsNeedEpw');
+      statusEl.textContent = msg;
+    }
+  } catch (err) {
+    if (statusEl) statusEl.textContent = (err && err.message) ? err.message : I18n.t('settingsLoadError');
   }
 }
 
@@ -1768,6 +2140,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // tidak tertinggal dalam bahasa lama setelah ganti bahasa.
     const rs = document.getElementById('report-status');
     if (rs) rs.textContent = '';
+    const ss = document.getElementById('settings-status');
+    if (ss) ss.textContent = '';
   });
 
   // Camera Presets
@@ -1795,8 +2169,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Login (Firebase Auth) + report downloads
   initAuth();
+  initConfirmModal();
+  initLeaveWarning();
   document.querySelectorAll('.report-btn').forEach((b) => {
     b.addEventListener('click', () => downloadReport(b.getAttribute('data-report')));
+  });
+
+  // Pengaturan simulasi (ekspor / impor JSON)
+  document.getElementById('settings-save').addEventListener('click', exportSettings);
+  document.getElementById('settings-load').addEventListener('click', () => {
+    document.getElementById('settings-file').click();
+  });
+  document.getElementById('settings-file').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) onSettingsFile(f);
+    e.target.value = '';
   });
 
   window.addEventListener('resize', () => updateAll());
