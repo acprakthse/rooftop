@@ -112,6 +112,7 @@
               <option value="gable-dual" data-i18n="roofOptGableDual">Pelana 2 Sisi (Gable Dual-Slope)</option>
               <option value="gable-single" data-i18n="roofOptGableSingle">Pelana 1 Sisi Aktif (Gable Single-Side)</option>
               <option value="flat-tilt" data-i18n="roofOptFlat">Dak Beton + Racking Miring (Flat C&I)</option>
+              <option value="l-shape" data-i18n="roofOptLShape">Atap L-Shape (Dak Beton 2 Sayap)</option>
               <option value="shed" data-i18n="roofOptShed">Atap Miring 1 Sisi (Mono-Pitch / Shed)</option>
               <option value="hip" data-i18n="roofOptHip">Atap Limas 3D (Hip Roof Polygon)</option>
             </select>
@@ -160,12 +161,21 @@
             </div>
           </div>
 
-          <div>
-            <div class="flex justify-between text-xs mb-1">
-              <span class="text-slate-500" data-i18n="setback">Perimeter Setback (Jarak Tepi Aman)</span>
-              <span id="val-setback" class="font-sans text-slate-700">0.8 m</span>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-500" data-i18n="setback">Setback Tepi</span>
+                <span id="val-setback" class="font-sans text-slate-700">0.8 m</span>
+              </div>
+              <input id="roof-setback" type="range" min="0.3" max="2.5" step="0.1" value="0.8" class="w-full accent-[#F5E214]" />
             </div>
-            <input id="roof-setback" type="range" min="0.3" max="2.5" step="0.1" value="0.8" class="w-full accent-[#F5E214]" />
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-500" data-i18n="parapetHeight">Tinggi Parapet</span>
+                <span id="val-parapet-height" class="font-sans text-slate-700">0.6 m</span>
+              </div>
+              <input id="parapet-height" type="range" min="0" max="2.0" step="0.1" value="0.6" class="w-full accent-[#12579B]" />
+            </div>
           </div>
         </div>
       </section>
@@ -211,6 +221,12 @@
               </div>
               <input id="rack-tilt" type="range" min="5" max="25" step="1" value="12" class="w-full accent-[#F5E214]" />
             </div>
+          </div>
+
+          <div class="pt-1 flex items-center justify-between gap-2">
+            <button id="btn-optimize-layout" type="button" class="w-full py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium transition-colors" data-i18n="optimizeLayoutBtn">
+              Optimasi Layout (Portrait/Landscape + Jarak Baris)
+            </button>
           </div>
 
           <div class="pt-1 flex items-center justify-between text-xs text-slate-500 border-t border-slate-200">

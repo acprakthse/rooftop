@@ -220,10 +220,12 @@ const ShadingAnalyzer = {
   // not groups, so they are occluders but never sample targets.
   _collectModules(state, scene3d) {
     const portrait = state.panelOrientation === 'portrait';
-    const pW = portrait ? 1.134 : 2.278;
-    const pH = portrait ? 2.278 : 1.134;
-    const hx = pW / 2 - 0.12;
-    const hz = pH / 2 - 0.12;
+    const modW = (state.customModule && state.customModule.width) ? state.customModule.width : 1.134;
+    const modL = (state.customModule && state.customModule.length) ? state.customModule.length : 2.278;
+    const pW = portrait ? modW : modL;
+    const pH = portrait ? modL : modW;
+    const hx = Math.max(0.05, pW / 2 - 0.12);
+    const hz = Math.max(0.05, pH / 2 - 0.12);
     const localPts = [
       [0, 0],
       [-hx, -hz],

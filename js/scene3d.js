@@ -393,27 +393,85 @@ const Scene3D = {
       });
 
       activePanelsCount += this.populateSlopePanels(slopeGroup, L, rafterLength, pW, pH, state, 'SHED', 0);
-    } else if (state.roofType === 'flat-tilt') {
+    } else if (state.roofType === 'flat-tilt' || state.roofType === 'l-shape') {
       rafterLength = W;
       const flatGroup = new THREE.Group();
       flatGroup.position.set(0, H + 0.15, 0);
+      const parapetH = Math.max(0, Number(state.parapetHeight) || 0);
+      const parapetT = 0.25;
+      const parapetMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.75 });
+      const addParapet = (px, pz, pw, pl) => {
+        if (parapetH <= 0.01) return;
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(pw, parapetH, pl), parapetMat);
+        wall.position.set(px, 0.15 + parapetH / 2, pz);
+        wall.castShadow = true;
+        wall.receiveShadow = true;
+        flatGroup.add(wall);
+      };
 
-      const roofSlabGeo = new THREE.BoxGeometry(L + 0.4, 0.3, W + 0.4);
-      const roofSlab = new THREE.Mesh(roofSlabGeo, roofMat);
-      roofSlab.receiveShadow = true;
-      flatGroup.add(roofSlab);
-      this.rootGroup.add(flatGroup);
+      if (state.roofType === 'flat-tilt') {
+        const roofSlabGeo = new THREE.BoxGeometry(L + 0.4, 0.3, W + 0.4);
+        const roofSlab = new THREE.Mesh(roofSlabGeo, roofMat);
+        roofSlab.receiveShadow = true;
+        flatGroup.add(roofSlab);
 
-      activePanelsCount += this.populateSlopePanels(
-        flatGroup,
-        L,
-        W,
-        pW,
-        pH,
-        state,
-        'FLAT',
-        (state.rackTilt * Math.PI) / 180
-      );
+        // 4 perimeter parapet walls (casts shadow & included in raycasting occluders)
+        addParapet(0, -W / 2 - parapetT / 2, L + 0.4, parapetT);
+        addParapet(0, W / 2 + parapetT / 2, L + 0.4, parapetT);
+        addParapet(-L / 2 - parapetT / 2, 0, parapetT, W + 0.4);
+        addParapet(L / 2 + parapetT / 2, 0, parapetT, W + 0.4);
+
+        this.rootGroup.add(flatGroup);
+        activePanelsCount += this.populateSlopePanels(
+          flatGroup,
+          L,
+          W,
+          pW,
+          pH,
+          state,
+          'FLAT',
+          (state.rackTilt * Math.PI) / 180
+        );
+      } else {
+        // L-shaped flat roof: Main wing (L x W*0.55) + Secondary wing (L*0.45 x W*0.45)
+        const mainW = W * 0.55;
+        const wingL = L * 0.45;
+        const wingW = W * 0.45;
+
+        const mainSlab = new THREE.Mesh(new THREE.BoxGeometry(L + 0.4, 0.3, mainW + 0.4), roofMat);
+        mainSlab.position.set(0, 0, -(W - mainW) / 2);
+        mainSlab.receiveShadow = true;
+        flatGroup.add(mainSlab);
+
+        const wingSlab = new THREE.Mesh(new THREE.BoxGeometry(wingL + 0.4, 0.3, wingW + 0.4), roofMat);
+        wingSlab.position.set((L - wingL) / 2, 0, (W - wingW) / 2);
+        wingSlab.receiveShadow = true;
+        flatGroup.add(wingSlab);
+
+        // Outer perimeter parapet walls around the L-shape
+        addParapet(0, -W / 2 - parapetT / 2, L + 0.4, parapetT);
+        addParapet(L / 2 + parapetT / 2, 0, parapetT, W + 0.4);
+        addParapet(-L / 2 - parapetT / 2, -(W - mainW) / 2, parapetT, mainW + 0.4);
+        addParapet((L - wingL) / 2, W / 2 + parapetT / 2, wingL + 0.4, parapetT);
+        addParapet(-(wingL) / 2, -(W / 2 - mainW), L - wingL, parapetT);
+        addParapet(L / 2 - wingL, (W - wingW) / 2, parapetT, wingW);
+
+        this.rootGroup.add(flatGroup);
+
+        const mainGroup = new THREE.Group();
+        mainGroup.position.set(0, 0, -(W - mainW) / 2);
+        flatGroup.add(mainGroup);
+        activePanelsCount += this.populateSlopePanels(
+          mainGroup, L, mainW, pW, pH, state, 'L1', (state.rackTilt * Math.PI) / 180
+        );
+
+        const wingGroup = new THREE.Group();
+        wingGroup.position.set((L - wingL) / 2, 0, (W - wingW) / 2);
+        flatGroup.add(wingGroup);
+        activePanelsCount += this.populateSlopePanels(
+          wingGroup, wingL, wingW, pW, pH, state, 'L2', (state.rackTilt * Math.PI) / 180
+        );
+      }
     }
 
     // Building orientation: azimuth the main array faces (180 = south = default pose).
@@ -479,11 +537,12 @@ const Scene3D = {
         const slotKey = `${sideId}-${r}-${c}`;
 
         if (this.disabledSlots.has(slotKey)) {
-          // Render 3D Obstacle (HVAC / Chimney)
-          const obsGeo = new THREE.CylinderGeometry(0.32, 0.36, 0.9, 16);
+          // Render 3D Obstacle (HVAC unit / Skylight / Chimney box)
+          const obsGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
           const obsMesh = new THREE.Mesh(obsGeo, obstacleMat);
-          obsMesh.position.set(posX, 0.55, posZ);
+          obsMesh.position.set(posX, 0.6, posZ);
           obsMesh.castShadow = true;
+          obsMesh.receiveShadow = true;
           obsMesh.userData = { slotKey };
           parentGroup.add(obsMesh);
           this.panelMeshes.push(obsMesh);

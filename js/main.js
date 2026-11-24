@@ -11,6 +11,7 @@ const AppState = {
   roofTilt: 18,
   wallHeight: 6.0,
   roofSetback: 0.8,
+  parapetHeight: 0.6,
   panelOrientation: 'portrait',
   panelWp: 610,
   customModule: null, // uploaded PV module spec {name, wp, length, width, ...} or null
@@ -302,7 +303,7 @@ function geometryFingerprint() {
   return JSON.stringify([
     AppState.roofType, AppState.orientation, AppState.roofLength,
     AppState.roofWidth, AppState.roofTilt, AppState.wallHeight,
-    AppState.roofSetback, AppState.panelOrientation, AppState.rowGap,
+    AppState.roofSetback, AppState.parapetHeight, AppState.panelOrientation, AppState.rowGap,
     AppState.rackTilt, AppState.bessKwh, AppState.siteLocation,
     AppState.customModule,
     [...Scene3D.disabledSlots].sort()
@@ -1896,6 +1897,8 @@ function updateAll() {
   document.getElementById('val-roof-tilt').textContent = `${AppState.roofTilt}°`;
   document.getElementById('val-wall-height').textContent = `${AppState.wallHeight.toFixed(1)} m`;
   document.getElementById('val-setback').textContent = `${AppState.roofSetback.toFixed(1)} m`;
+  const parapetEl = document.getElementById('val-parapet-height');
+  if (parapetEl) parapetEl.textContent = `${(AppState.parapetHeight || 0).toFixed(1)} m`;
   document.getElementById('val-row-gap').textContent = `${AppState.rowGap.toFixed(2)} m`;
   document.getElementById('val-rack-tilt').textContent = `${AppState.rackTilt}°`;
   document.getElementById('val-bess-kwh').textContent = `${AppState.bessKwh} kWh`;
@@ -1967,12 +1970,56 @@ document.addEventListener('DOMContentLoaded', () => {
   bindInput('roof-tilt', 'roofTilt', parseFloat);
   bindInput('wall-height', 'wallHeight', parseFloat);
   bindInput('roof-setback', 'roofSetback', parseFloat);
+  bindInput('parapet-height', 'parapetHeight', parseFloat);
   bindInput('panel-orientation', 'panelOrientation', String);
   bindInput('row-gap', 'rowGap', parseFloat);
   bindInput('rack-tilt', 'rackTilt', parseFloat);
   bindInput('bess-kwh', 'bessKwh', parseInt);
   bindInput('bess-kw', 'bessKw', parseInt);
   bindInput('sun-hour', 'sunHour', parseFloat);
+
+  // Stage 2: Auto-Optimize Layout (Portrait vs Landscape + Winter-Solstice +/-3h row gap)
+  const optBtn = document.getElementById('btn-optimize-layout');
+  if (optBtn) {
+    optBtn.addEventListener('click', () => {
+      const loc = EnergyModel.locations[AppState.siteLocation] || EnergyModel.locations.jakarta;
+      const latRad = (loc.lat * Math.PI) / 180;
+      const declRad = ((loc.lat >= 0 ? -23.45 : 23.45) * Math.PI) / 180;
+      const haRad = (45 * Math.PI) / 180; // solar noon +/- 3 hours
+      const sinAlt = Math.sin(latRad) * Math.sin(declRad) + Math.cos(latRad) * Math.cos(declRad) * Math.cos(haRad);
+      const altRad = Math.asin(Math.max((8 * Math.PI) / 180, Math.min(1, sinAlt)));
+
+      const isFlat = AppState.roofType === 'flat-tilt' || AppState.roofType === 'l-shape';
+      const modW = (AppState.customModule && AppState.customModule.width) ? AppState.customModule.width : 1.134;
+      const modL = (AppState.customModule && AppState.customModule.length) ? AppState.customModule.length : 2.278;
+
+      let best = null;
+      for (const orient of ['portrait', 'landscape']) {
+        const pH = orient === 'portrait' ? modL : modW;
+        let gap = AppState.rowGap;
+        if (isFlat) {
+          const tiltRad = (AppState.rackTilt * Math.PI) / 180;
+          const shadowLen = (pH * Math.sin(tiltRad)) / Math.tan(altRad);
+          gap = Math.max(0.05, Math.min(1.8, Math.round(shadowLen * 20) / 20));
+        }
+        const testState = { ...AppState, panelOrientation: orient, rowGap: gap };
+        const { activePanelsCount } = Scene3D.buildScene(testState);
+        if (!best || activePanelsCount > best.count) {
+          best = { orient, gap, count: activePanelsCount };
+        }
+      }
+
+      if (best) {
+        AppState.panelOrientation = best.orient;
+        AppState.rowGap = best.gap;
+        const orientEl = document.getElementById('panel-orientation');
+        if (orientEl) orientEl.value = best.orient;
+        const gapEl = document.getElementById('row-gap');
+        if (gapEl) gapEl.value = best.gap;
+        updateAll();
+      }
+    });
+  }
 
   // Module Wp select: picking a standard module clears the custom upload.
   document.getElementById('panel-wp').addEventListener('change', (e) => {
