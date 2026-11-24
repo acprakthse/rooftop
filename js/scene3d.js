@@ -170,19 +170,30 @@ const Scene3D = {
     this.controls.update();
   },
 
-  updateSunPosition(sunHour) {
-    // Map 6.5 .. 17.5 to angle
-    const norm = (sunHour - 6) / 12; // 0 to 1
-    const angle = norm * Math.PI;
+  updateSunPosition(sunHour, latDeg) {
     const radius = 38;
-    const x = -Math.cos(angle) * radius;
-    const y = Math.max(4, Math.sin(angle) * radius);
-    const z = 12;
+    let x, y, z, elevDeg;
+    if (typeof Solar !== 'undefined' && typeof latDeg === 'number' && isFinite(latDeg)) {
+      // Equinox (day 80) shows true hemisphere sun arc: rises East (+X),
+      // arcs North (-Z) in Southern Hemisphere or South (+Z) in Northern Hemisphere.
+      const pos = Solar.sunPosition(80, sunHour, latDeg);
+      const elVisual = Math.max(4, pos.elevationDeg);
+      const dir = Solar.sunDirection(elVisual, pos.azimuthDeg);
+      x = dir.x * radius;
+      y = dir.y * radius;
+      z = dir.z * radius;
+      elevDeg = Math.max(0, Math.round(pos.elevationDeg));
+    } else {
+      const norm = (sunHour - 6) / 12;
+      const angle = norm * Math.PI;
+      x = Math.cos(angle) * radius;
+      y = Math.max(4, Math.sin(angle) * radius);
+      z = -12;
+      elevDeg = Math.round((Math.atan2(y, Math.hypot(x, z)) * 180) / Math.PI);
+    }
 
     this.sunLight.position.set(x, y, z);
     this.sunSphere.position.set(x, y, z);
-
-    const elevDeg = Math.round((Math.atan2(y, Math.hypot(x, z)) * 180) / Math.PI);
     return elevDeg;
   },
 

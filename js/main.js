@@ -5,7 +5,7 @@
 
 const AppState = {
   roofType: 'gable-dual',
-  orientation: 180,
+  orientation: 0,
   roofLength: 24,
   roofWidth: 14,
   roofTilt: 18,
@@ -1284,6 +1284,12 @@ async function onEpwFile(file) {
     opt.textContent = 'EPW: ' + parsed.name + ' (PSH ' + parsed.psh.toFixed(1) + 'h)';
     sel.value = 'CUSTOM_EPW';
     AppState.siteLocation = 'CUSTOM_EPW';
+    if (AppState.orientation === 0 || AppState.orientation === 180) {
+      const epwLat = EnergyModel.locations.CUSTOM_EPW.lat;
+      AppState.orientation = epwLat < 0 ? 0 : 180;
+      const orientEl = document.getElementById('orientation');
+      if (orientEl) orientEl.value = AppState.orientation;
+    }
     if (clearBtn) clearBtn.classList.remove('hidden');
     if (infoEl) {
       infoEl.classList.remove('hidden');
@@ -1914,7 +1920,8 @@ function updateAll() {
 
   // Rebuild 3D Scene
   const { activePanelsCount, rafterLength } = Scene3D.buildScene(AppState);
-  const elevDeg = Scene3D.updateSunPosition(AppState.sunHour);
+  const activeLoc = EnergyModel.locations[AppState.siteLocation] || EnergyModel.locations.jakarta;
+  const elevDeg = Scene3D.updateSunPosition(AppState.sunHour, activeLoc.lat);
 
   document.getElementById('hud-slope-info').textContent = I18n.t('rafterSlope', { v: rafterLength.toFixed(2) });
   document.getElementById('hud-sun-elevation').textContent = I18n.t('sunElevation', { v: elevDeg });
@@ -1982,13 +1989,15 @@ document.addEventListener('DOMContentLoaded', () => {
   bindInput('bess-kw', 'bessKw', parseInt);
   bindInput('sun-hour', 'sunHour', parseFloat);
 
-  // Stage 2: Auto-Optimize Layout (Portrait vs Landscape + Winter-Solstice +/-3h row gap)
+  // Stage 2: Auto-Optimize Layout (Portrait vs Landscape + Solstice +/-3h row gap)
   const optBtn = document.getElementById('btn-optimize-layout');
   if (optBtn) {
     optBtn.addEventListener('click', () => {
       const loc = EnergyModel.locations[AppState.siteLocation] || EnergyModel.locations.jakarta;
       const latRad = (loc.lat * Math.PI) / 180;
-      const declRad = ((loc.lat >= 0 ? -23.45 : 23.45) * Math.PI) / 180;
+      // Match solstice to actual array facing: North-facing -> June (+23.45°), South-facing -> Dec (-23.45°)
+      const facingNorth = Math.cos((AppState.orientation * Math.PI) / 180) >= 0;
+      const declRad = ((facingNorth ? 23.45 : -23.45) * Math.PI) / 180;
       const haRad = (45 * Math.PI) / 180; // solar noon +/- 3 hours
       const sinAlt = Math.sin(latRad) * Math.sin(declRad) + Math.cos(latRad) * Math.cos(declRad) * Math.cos(haRad);
       const altRad = Math.asin(Math.max((8 * Math.PI) / 180, Math.min(1, sinAlt)));
@@ -2060,6 +2069,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (infoEl) { infoEl.classList.add('hidden'); infoEl.textContent = ''; }
     }
     AppState.siteLocation = v;
+    // Auto-flip default cardinal orientation (0° North for Southern Hemisphere, 180° South for Northern)
+    // only on direct user selection when orientation is still at default 0° or 180°.
+    if (e.isTrusted && (AppState.orientation === 0 || AppState.orientation === 180)) {
+      const loc = EnergyModel.locations[v];
+      if (loc && typeof loc.lat === 'number') {
+        AppState.orientation = loc.lat < 0 ? 0 : 180;
+        const orientEl = document.getElementById('orientation');
+        if (orientEl) orientEl.value = AppState.orientation;
+      }
+    }
     updateAll();
   });
 
