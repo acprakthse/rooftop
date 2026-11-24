@@ -1,5 +1,11 @@
 // bayar.js
 // Logika halaman pembayaran (/bayar/): ringkasan pesanan + Midtrans Snap.
+// SEMENTARA (sampai website launching): kanal pembayaran ditutup.
+// Halaman ini menampilkan popup pembangunan saat dibuka dengan paket
+// valid, dan tombol Bayar hanya membuka popup itu; Snap.js tidak
+// dimuat. Untuk membuka kembali: hapus guard di startPayment, panggil
+// loadSnapJs() lagi di initBayar, dan hapus pemanggilan
+// openPaySoonModal() saat init.
 // Paket dibaca dari ?paket= (satuan/pack5/pack10). Harga di sini HANYA
 // untuk tampilan; harga yang ditagihkan selalu dari katalog backend.
 // Alur: klik Bayar -> POST /payment/create (dapat Snap token) ->
@@ -120,6 +126,27 @@ function openAuthModal(noteKey) {
 function closeAuthModal() {
   const modal = document.getElementById('auth-modal');
   if (modal) modal.classList.add('hidden');
+}
+
+// Popup kanal pembayaran masih dalam pembangunan (sementara,
+// sampai website launching).
+function openPaySoonModal() {
+  const modal = document.getElementById('pay-soon-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closePaySoonModal() {
+  const modal = document.getElementById('pay-soon-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function initPaySoonModal() {
+  const x = document.getElementById('pay-soon-close-x');
+  if (x) x.addEventListener('click', closePaySoonModal);
+  const btn = document.getElementById('pay-soon-close');
+  if (btn) btn.addEventListener('click', closePaySoonModal);
+  const modal = document.getElementById('pay-soon-modal');
+  if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closePaySoonModal(); });
 }
 
 function authErrorMessage(code) {
@@ -298,6 +325,10 @@ async function confirmPayment(orderId) {
 }
 
 async function startPayment() {
+  // SEMENTARA: pembayaran belum dibuka, tampilkan popup. Isi fungsi di
+  // bawah ini tidak berjalan sampai guard ini dihapus saat launching.
+  openPaySoonModal();
+  return;
   if (!selectedPackage) return;
   if (!authUser) { openAuthModal('bayNeedLogin'); return; }
   if (!snapReady || typeof window.snap === 'undefined') {
@@ -388,8 +419,13 @@ function initBayar() {
   });
   initAuth();
   initMethodPicker();
+  initPaySoonModal();
   updateAuthUI();
-  if (selectedPackage) loadSnapJs();
+  if (selectedPackage) {
+    // SEMENTARA: pembayaran belum dibuka; Snap.js tidak dimuat dan
+    // popup pembangunan tampil saat halaman dibuka.
+    openPaySoonModal();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', initBayar);

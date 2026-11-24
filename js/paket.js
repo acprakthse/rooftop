@@ -1,9 +1,12 @@
 // paket.js
 // Logika halaman paket (/paket/): login Firebase + pilihan paket.
-// Tombol "Mulai gratis" mengarah ke /app; tombol "Pilih paket" ke
-// /bayar/?paket=<id>. Kalau belum login, modal login terbuka dulu dan
-// setelah login berhasil browser lanjut ke tujuan yang tertunda
-// (disimpan di sessionStorage 'pendingAfterLogin').
+// Tombol "Mulai gratis" mengarah ke /app. Tombol "Pilih paket"
+// SEMENTARA menampilkan popup kanal pembayaran masih dalam pembangunan
+// (sampai website launching); alur /bayar/?paket=<id> dipulihkan nanti
+// dengan mengembalikan handler .js-pkt-buy ke goOrLogin. Kalau belum
+// login, modal login terbuka dulu dan setelah login berhasil browser
+// lanjut ke tujuan yang tertunda (disimpan di sessionStorage
+// 'pendingAfterLogin').
 // Blok auth di sini disengaja mirip dengan landing.js (id elemen, kunci
 // i18n, dan perilaku pill kuota sama), supaya halaman-halaman konsisten.
 
@@ -83,6 +86,27 @@ function openAuthModal(noteKey) {
 function closeAuthModal() {
   const modal = document.getElementById('auth-modal');
   if (modal) modal.classList.add('hidden');
+}
+
+// Popup kanal pembayaran masih dalam pembangunan (sementara,
+// sampai website launching).
+function openPaySoonModal() {
+  const modal = document.getElementById('pay-soon-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closePaySoonModal() {
+  const modal = document.getElementById('pay-soon-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function initPaySoonModal() {
+  const x = document.getElementById('pay-soon-close-x');
+  if (x) x.addEventListener('click', closePaySoonModal);
+  const btn = document.getElementById('pay-soon-close');
+  if (btn) btn.addEventListener('click', closePaySoonModal);
+  const modal = document.getElementById('pay-soon-modal');
+  if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closePaySoonModal(); });
 }
 
 function authErrorMessage(code) {
@@ -203,7 +227,8 @@ function initAuth() {
   });
   document.querySelectorAll('.js-pkt-buy').forEach((el) => {
     el.addEventListener('click', () => {
-      goOrLogin('/bayar/?paket=' + el.getAttribute('data-package'), 'bayNeedLogin');
+      // SEMENTARA: pembayaran belum dibuka, tampilkan popup.
+      openPaySoonModal();
     });
   });
   if (!authConfigured || typeof firebase === 'undefined') return;
@@ -232,6 +257,7 @@ function initPaket() {
     updatePerSim();
   });
   initAuth();
+  initPaySoonModal();
   updateAuthUI();
   updatePerSim();
 }
