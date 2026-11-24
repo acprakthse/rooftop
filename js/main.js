@@ -1693,6 +1693,21 @@ function renderPysamUI() {
   if (shadeBtn) shadeBtn.disabled = pysamRunning || shadingRunning;
   if (!pysamRunning) runBtn.textContent = I18n.t('pysamRun');
 
+  const progWrap = document.getElementById('sim-progress-wrap');
+  if (progWrap) progWrap.classList.toggle('hidden', !(pysamRunning || shadingRunning));
+
+  const stepper = document.getElementById('sim-stepper');
+  if (stepper) {
+    const freshSim = !!(pysamResult && pysamIsFresh());
+    const done = { 1: true, 2: !!shadingResult, 3: freshSim, 4: freshSim };
+    stepper.querySelectorAll('[data-step]').forEach((el) => {
+      const s = Number(el.getAttribute('data-step'));
+      el.className = done[s]
+        ? 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand/10 text-brand font-semibold'
+        : 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-bgpanel text-slate-500';
+    });
+  }
+
   if (pysamRunning) return; // status line is driven by the runner
   if (!pysamResult) {
     // No result yet: show whether shading is measured, so the order is
@@ -1879,6 +1894,67 @@ function renderPysamUI() {
     lab.textContent = names[i];
     labelsEl.appendChild(lab);
   });
+
+  // HelioScope-style Sources of System Loss (Loss Tree)
+  const ltWrap = document.getElementById('pysam-loss-tree-wrap');
+  const ltSummary = document.getElementById('pysam-loss-summary');
+  const ltBars = document.getElementById('pysam-loss-bars');
+  if (ltWrap && ltSummary && ltBars) {
+    const lt = r.loss_tree;
+    if (lt && typeof lt === 'object') {
+      ltWrap.classList.remove('hidden');
+      ltSummary.innerHTML = '';
+      const addChip = (label, val) => {
+        const span = document.createElement('span');
+        span.className = 'px-2 py-0.5 rounded bg-bgpanel border border-slate-200/80 text-slate-700';
+        const strong = document.createElement('strong');
+        strong.className = 'text-brand';
+        strong.textContent = val;
+        span.appendChild(document.createTextNode(label + ' '));
+        span.appendChild(strong);
+        ltSummary.appendChild(span);
+      };
+      if (lt.ghi_kwh_m2 != null) addChip('GHI', lt.ghi_kwh_m2.toFixed(0) + ' kWh/m²');
+      if (lt.poa_kwh_m2 != null) addChip('POA', lt.poa_kwh_m2.toFixed(0) + ' kWh/m²');
+      if (lt.performance_ratio_pct != null) addChip('PR', lt.performance_ratio_pct.toFixed(1) + '%');
+
+      const items = [
+        [I18n.t('ltShading'), Number(lt.shading_loss_pct) || 0],
+        [I18n.t('ltIam'), Number(lt.reflection_iam_loss_pct) || 0],
+        [I18n.t('ltSoiling'), Number(lt.soiling_loss_pct) || 0],
+        [I18n.t('ltTemp'), Number(lt.irradiance_temp_loss_pct) || 0],
+        [I18n.t('ltWiring'), Number(lt.mismatch_wiring_loss_pct) || 0],
+        [I18n.t('ltInverter'), Number(lt.inverter_clipping_loss_pct) || 0]
+      ];
+      const maxLoss = Math.max(10, ...items.map((x) => x[1]));
+      ltBars.innerHTML = '';
+      items.forEach(([label, pct]) => {
+        const row = document.createElement('div');
+        row.className = 'space-y-1';
+        const head = document.createElement('div');
+        head.className = 'flex justify-between text-[11px] font-sans';
+        const l = document.createElement('span');
+        l.className = 'text-slate-600';
+        l.textContent = label;
+        const v = document.createElement('span');
+        v.className = 'font-semibold tabular-nums text-slate-800';
+        v.textContent = '-' + pct.toFixed(1) + '%';
+        head.appendChild(l);
+        head.appendChild(v);
+        const track = document.createElement('div');
+        track.className = 'h-1.5 rounded-full bg-bgpanel overflow-hidden';
+        const fill = document.createElement('div');
+        fill.className = 'h-full rounded-full bg-[#12579B]';
+        fill.style.width = Math.min(100, Math.max(2, (pct / maxLoss) * 100)) + '%';
+        track.appendChild(fill);
+        row.appendChild(head);
+        row.appendChild(track);
+        ltBars.appendChild(row);
+      });
+    } else {
+      ltWrap.classList.add('hidden');
+    }
+  }
 }
 
 function updateAll() {
@@ -1914,6 +1990,15 @@ function updateAll() {
   document.getElementById('val-bess-kwh').textContent = `${AppState.bessKwh} kWh`;
   document.getElementById('val-bess-kw').textContent = `${AppState.bessKw} kW`;
 
+  // Contextual controls: highlight only sliders applicable to active roof typology
+  const isFlatRoof = AppState.roofType === 'flat-tilt' || AppState.roofType === 'l-shape';
+  const wrapRoofTilt = document.getElementById('wrap-roof-tilt');
+  const wrapParapet = document.getElementById('wrap-parapet-height');
+  const wrapRackTilt = document.getElementById('wrap-rack-tilt');
+  if (wrapRoofTilt) wrapRoofTilt.classList.toggle('ctrl-dimmed', isFlatRoof);
+  if (wrapParapet) wrapParapet.classList.toggle('ctrl-dimmed', !isFlatRoof);
+  if (wrapRackTilt) wrapRackTilt.classList.toggle('ctrl-dimmed', !isFlatRoof);
+
   const hr = Math.floor(AppState.sunHour);
   const min = Math.round((AppState.sunHour - hr) * 60);
   document.getElementById('val-sun-hour').textContent = `${String(hr).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
@@ -1923,6 +2008,14 @@ function updateAll() {
   const activeLoc = EnergyModel.locations[AppState.siteLocation] || EnergyModel.locations.jakarta;
   const elevDeg = Scene3D.updateSunPosition(AppState.sunHour, activeLoc.lat);
 
+  const hudContext = document.getElementById('hud-context');
+  if (hudContext) {
+    const roofSel = document.getElementById('roof-type');
+    const roofShort = roofSel && roofSel.selectedIndex >= 0
+      ? roofSel.options[roofSel.selectedIndex].textContent.split('(')[0].trim()
+      : AppState.roofType;
+    hudContext.textContent = `${activeLoc.name} · ${roofShort} · ${formatCompass(AppState.orientation)}`;
+  }
   document.getElementById('hud-slope-info').textContent = I18n.t('rafterSlope', { v: rafterLength.toFixed(2) });
   document.getElementById('hud-sun-elevation').textContent = I18n.t('sunElevation', { v: elevDeg });
   document.getElementById('obstacle-count').textContent = Scene3D.disabledSlots.size;
@@ -2214,12 +2307,51 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ss) ss.textContent = '';
   });
 
-  // Camera Presets
+  // Camera Presets (segmented active state)
   document.querySelectorAll('.cam-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
+      document.querySelectorAll('.cam-btn').forEach((b) => b.classList.remove('cam-active'));
+      btn.classList.add('cam-active');
       Scene3D.setCameraPreset(btn.dataset.cam);
     });
   });
+
+  // Solar Time Playback (animates sun & shadows smoothly without rebuilding geometry)
+  let sunPlayTimer = null;
+  const sunPlayBtn = document.getElementById('sun-play-btn');
+  const sunPlayIcon = document.getElementById('sun-play-icon');
+  const sunSlider = document.getElementById('sun-hour');
+  const stopSunPlay = () => {
+    if (sunPlayTimer !== null) {
+      clearInterval(sunPlayTimer);
+      sunPlayTimer = null;
+      if (sunPlayIcon) sunPlayIcon.innerHTML = '<polygon points="6,4 20,12 6,20"/>';
+    }
+  };
+  if (sunSlider) sunSlider.addEventListener('pointerdown', stopSunPlay);
+  if (sunPlayBtn) {
+    sunPlayBtn.addEventListener('click', () => {
+      if (sunPlayTimer !== null) {
+        stopSunPlay();
+        return;
+      }
+      if (sunPlayIcon) sunPlayIcon.innerHTML = '<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>';
+      sunPlayTimer = setInterval(() => {
+        let next = AppState.sunHour + 0.15;
+        if (next > 17.5) next = 6.5;
+        AppState.sunHour = Math.round(next * 100) / 100;
+        if (sunSlider) sunSlider.value = AppState.sunHour;
+        const hr = Math.floor(AppState.sunHour);
+        const min = Math.round((AppState.sunHour - hr) * 60);
+        const valEl = document.getElementById('val-sun-hour');
+        if (valEl) valEl.textContent = `${String(hr).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+        const loc = EnergyModel.locations[AppState.siteLocation] || EnergyModel.locations.jakarta;
+        const elev = Scene3D.updateSunPosition(AppState.sunHour, loc.lat);
+        const elevEl = document.getElementById('hud-sun-elevation');
+        if (elevEl) elevEl.textContent = I18n.t('sunElevation', { v: elev });
+      }, 90);
+    });
+  }
 
   // Detailed PySAM simulation (per-slope, via Cloud Run)
   document.getElementById('run-pysam').addEventListener('click', () => {

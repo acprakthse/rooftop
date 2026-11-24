@@ -10,55 +10,164 @@
 
 body {
   background-color: var(--bg-deep);
+}
+
+/* Layered engineering workspace surface */
+#workspace-main {
+  background-color: var(--bg-panel);
   background-image:
-    radial-gradient(circle at 15% 15%, rgba(245, 226, 20, 0.05), transparent 35%),
-    radial-gradient(circle at 85% 80%, rgba(18, 87, 155, 0.05), transparent 35%);
+    radial-gradient(circle at 12% 8%, rgba(245, 226, 20, 0.05), transparent 36%),
+    radial-gradient(circle at 90% 85%, rgba(18, 87, 155, 0.045), transparent 38%);
+}
+
+/* Crisp elevated engineering cards */
+.eng-card {
+  background-color: var(--bg-card);
+  border: 1px solid rgba(203, 213, 225, 0.75);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.025);
 }
 
 /* Custom Scrollbar for Sidebar */
 .custom-scroll::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 .custom-scroll::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 .custom-scroll::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 3px;
+  border-radius: 999px;
 }
 .custom-scroll::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
-/* Range Input Polish */
+/* Precision CAD Range Slider */
 input[type="range"] {
-  height: 5px;
-  border-radius: 4px;
-  background: #e2e8f0;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: #dde3ea;
   cursor: pointer;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  background: #FFFFFF;
+  border: 2.5px solid #12579B;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px rgba(18, 87, 155, 0.12);
+}
+input[type="range"]:active::-webkit-slider-thumb {
+  background: #F5E214;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  background: #FFFFFF;
+  border: 2.5px solid #12579B;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px rgba(18, 87, 155, 0.12);
 }
 
-/* Collapsed sidebar (desktop only): panel hides, workspace expands.
-   Below lg the sidebar is always visible, stacked above the workspace. */
+/* Clean form focus states */
+#sidebar select,
+#sidebar input[type="number"] {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+#sidebar select:focus,
+#sidebar input[type="number"]:focus {
+  outline: none;
+  border-color: #12579B;
+  background-color: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(18, 87, 155, 0.12);
+}
+
+/* Contextual disabled control group */
+.ctrl-dimmed {
+  opacity: 0.42;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+/* Collapsed sidebar (desktop only): panel hides, workspace expands. */
 @media (min-width: 1024px) {
   #layout-row.sidebar-collapsed #sidebar {
     display: none;
   }
 }
 
-/* Sidebar tab panels: on desktop only the active section shows (the icon
-   rail switches panels); below lg there is no rail, so all sections stay
-   stacked and the class has no effect. */
+/* Sidebar tab panels: on desktop only the active section shows */
 @media (min-width: 1024px) {
   #sidebar section.panel-hidden {
     display: none;
   }
 }
 
-/* Icon rail: active section button (grey highlight, brand blue icon) */
+/* Icon rail: active section button with brand indicator bar */
+.rail-btn {
+  position: relative;
+}
 .rail-btn.active {
   background-color: #F2F4F5;
   color: #12579B;
+  font-weight: 600;
+}
+.rail-btn.active::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background-color: #12579B;
+}
+
+/* Camera segmented control active state */
+.cam-btn.cam-active {
+  background-color: #12579B;
+  color: #FFFFFF;
+  border-color: #12579B;
+}
+.cam-btn.cam-active:hover {
+  background-color: #0e467d;
+}
+
+/* Indeterminate progress shimmer while shading / simulation runs */
+.sim-progress-track {
+  position: relative;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+.sim-progress-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 38%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #12579B 0%, #F5E214 100%);
+  animation: simSlide 1.35s ease-in-out infinite;
+}
+@keyframes simSlide {
+  0% { left: -38%; }
+  100% { left: 100%; }
 }
 
 /* Collapse chevron flips direction when the panel is hidden */
@@ -71,7 +180,9 @@ input[type="range"] {
 
 /* Tabular figures keep slider/KPI values from jittering as they change */
 span[id^="val-"],
-span[id^="kpi-"] {
+span[id^="kpi-"],
+span[id^="pysam-"],
+.tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
