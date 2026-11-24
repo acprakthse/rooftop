@@ -33,7 +33,8 @@ const EnergyModel = {
     const kwp = (activePanelsCount * state.panelWp) / 1000;
 
     // 2. Tilt Efficiency Factor
-    const effectiveTilt = state.roofType === 'flat-tilt' ? state.rackTilt : state.roofTilt;
+    const effectiveTilt = (state.roofType === 'flat-tilt' || state.roofType === 'l-shape')
+      ? state.rackTilt : state.roofTilt;
     const optimalTilt = Math.abs(loc.lat);
     const tiltDeviation = Math.abs(effectiveTilt - optimalTilt);
     const tiltFactor = Math.max(0.82, 1 - tiltDeviation * 0.0035);

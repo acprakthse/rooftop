@@ -316,6 +316,8 @@ function slopeLabel(side) {
   if (side === 'E') return I18n.t('dirE');
   if (side === 'W') return I18n.t('dirW');
   if (side === 'FLAT') return I18n.t('slopeFlat');
+  if (side === 'L1') return 'L-Wing 1';
+  if (side === 'L2') return 'L-Wing 2';
   return side; // SHED and anything else keep their code
 }
 
@@ -426,8 +428,8 @@ async function runShadingAnalysis(onProgress) {
 // 270 = West. The building rotation (rootGroup.rotation.y =
 // 180 - orientation) shifts every slope by (orientation - 180), so
 // the true azimuth is the default plus that shift, mod 360.
-const SLOPE_DEFAULT_AZIMUTH = { S: 180, N: 0, E: 90, W: 270, SHED: 180, FLAT: 180 };
-const SLOPE_ORDER = ['S', 'N', 'E', 'W', 'SHED', 'FLAT'];
+const SLOPE_DEFAULT_AZIMUTH = { S: 180, N: 0, E: 90, W: 270, SHED: 180, FLAT: 180, L1: 180, L2: 180 };
+const SLOPE_ORDER = ['S', 'N', 'E', 'W', 'SHED', 'FLAT', 'L1', 'L2'];
 
 function slopePanelCounts() {
   // Same collection rule as ShadingAnalyzer._collectModules: holder
@@ -452,7 +454,7 @@ function buildPysamPayload() {
   for (const side of SLOPE_ORDER) {
     const n = counts[side] || 0;
     if (n === 0) continue;
-    const tilt = side === 'FLAT' ? AppState.rackTilt : AppState.roofTilt;
+    const tilt = (side === 'FLAT' || side === 'L1' || side === 'L2') ? AppState.rackTilt : AppState.roofTilt;
     const azimuth = (((SLOPE_DEFAULT_AZIMUTH[side] + AppState.orientation - 180) % 360) + 360) % 360;
     const shading = shadingResult && shadingResult.perSlope[side]
       ? shadingResult.perSlope[side].lossPercent
@@ -859,6 +861,7 @@ function exportSettings() {
       tiltDeg: AppState.roofTilt,
       wallHeightM: AppState.wallHeight,
       setbackM: AppState.roofSetback,
+      parapetHeightM: AppState.parapetHeight,
       orientationDeg: AppState.orientation,
       disabledSlots: (typeof Scene3D !== 'undefined' && Scene3D.disabledSlots)
         ? Array.from(Scene3D.disabledSlots) : []
@@ -962,12 +965,13 @@ async function onSettingsFile(file) {
 
     // Atap
     const roof = data.roof || {};
-    setInput('roof-type', enm(roof, 'type', ['gable-dual', 'gable-single', 'flat-tilt', 'shed', 'hip'], 'roof.type'));
+    setInput('roof-type', enm(roof, 'type', ['gable-dual', 'gable-single', 'flat-tilt', 'l-shape', 'shed', 'hip'], 'roof.type'));
     setInput('roof-length', num(roof, 'lengthM', 10, 50, 'roof.lengthM'));
     setInput('roof-width', num(roof, 'widthM', 8, 32, 'roof.widthM'));
     setInput('roof-tilt', num(roof, 'tiltDeg', 0, 40, 'roof.tiltDeg'));
     setInput('wall-height', num(roof, 'wallHeightM', 3, 16, 'roof.wallHeightM'));
     setInput('roof-setback', num(roof, 'setbackM', 0.3, 2.5, 'roof.setbackM'));
+    setInput('parapet-height', num(roof, 'parapetHeightM', 0, 2.0, 'roof.parapetHeightM'));
     setInput('orientation', num(roof, 'orientationDeg', 0, 355, 'roof.orientationDeg'));
     if (Array.isArray(roof.disabledSlots) && typeof Scene3D !== 'undefined' && Scene3D.disabledSlots) {
       Scene3D.disabledSlots.clear();
