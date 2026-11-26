@@ -140,9 +140,10 @@ const MapRoofDrawer = {
       this._redraw();
     }
 
+    this._updateMetrics();
     setTimeout(() => {
       if (this.map) this.map.invalidateSize();
-    }, 120);
+    }, 150);
   },
 
   close() {
