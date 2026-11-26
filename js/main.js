@@ -22,7 +22,10 @@ const AppState = {
   bessKwh: 120,
   bessKw: 60,
   sunHour: 10.5,
-  currency: 'IDR'
+  currency: 'IDR',
+  mapPolygonLatLon: null,
+  mapPolygonXY: null,
+  mapPolygonArea: null
 };
 
 // 8-point compass names, in azimuth order (0 = North, clockwise).
@@ -305,7 +308,7 @@ function geometryFingerprint() {
     AppState.roofWidth, AppState.roofTilt, AppState.wallHeight,
     AppState.roofSetback, AppState.parapetHeight, AppState.panelOrientation, AppState.rowGap,
     AppState.rackTilt, AppState.bessKwh, AppState.siteLocation,
-    AppState.customModule,
+    AppState.customModule, AppState.mapPolygonXY,
     [...Scene3D.disabledSlots].sort()
   ]);
 }
@@ -2387,6 +2390,64 @@ document.addEventListener('DOMContentLoaded', () => {
     if (f) onSettingsFile(f);
     e.target.value = '';
   });
+
+  // Free Satellite Map Roof Drawer (Leaflet + Esri World Imagery + Nominatim)
+  if (typeof MapRoofDrawer !== 'undefined') {
+    const clearMapPolygon = (redraw = true) => {
+      AppState.mapPolygonLatLon = null;
+      AppState.mapPolygonXY = null;
+      AppState.mapPolygonArea = null;
+      const badge = document.getElementById('map-poly-badge');
+      if (badge) badge.classList.add('hidden');
+      if (redraw) updateAll();
+    };
+
+    MapRoofDrawer.init((geom) => {
+      AppState.mapPolygonLatLon = geom.polygonLatLon;
+      AppState.mapPolygonXY = geom.polygonXY;
+      AppState.mapPolygonArea = geom.areaM2;
+
+      const clampedL = Math.max(10, Math.min(50, Math.round(geom.lengthM)));
+      const clampedW = Math.max(8, Math.min(32, Math.round(geom.widthM)));
+      AppState.roofLength = clampedL;
+      AppState.roofWidth = clampedW;
+      AppState.orientation = geom.orientationDeg;
+      AppState.roofType = 'flat-tilt';
+
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+      setVal('roof-length', clampedL);
+      setVal('roof-width', clampedW);
+      setVal('orientation', geom.orientationDeg);
+      setVal('roof-type', 'flat-tilt');
+
+      const badge = document.getElementById('map-poly-badge');
+      const summary = document.getElementById('map-poly-summary');
+      if (summary) summary.textContent = `${geom.areaM2} m² · ${geom.lengthM} × ${geom.widthM} m · Az ${geom.orientationDeg}°`;
+      if (badge) badge.classList.remove('hidden');
+
+      Scene3D.disabledSlots.clear();
+      updateAll();
+    });
+
+    const openMapBtn = document.getElementById('btn-open-map');
+    if (openMapBtn) {
+      openMapBtn.addEventListener('click', () => {
+        MapRoofDrawer.open(AppState.siteLocation, AppState.mapPolygonLatLon);
+      });
+    }
+    const clearMapBtn = document.getElementById('btn-clear-map-poly');
+    if (clearMapBtn) {
+      clearMapBtn.addEventListener('click', () => {
+        MapRoofDrawer.clearAll();
+        clearMapPolygon(true);
+      });
+    }
+    // Manual length/width slider edit returns to parametric rectangle mode
+    ['roof-length', 'roof-width'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', () => { if (AppState.mapPolygonXY) clearMapPolygon(false); });
+    });
+  }
 
   window.addEventListener('resize', () => updateAll());
   updateAll();

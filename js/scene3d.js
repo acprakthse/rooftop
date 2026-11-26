@@ -229,12 +229,28 @@ const Scene3D = {
       triMesh.receiveShadow = true;
       this.rootGroup.add(triMesh);
     };
-    const wallGeo = new THREE.BoxGeometry(L, H, W);
-    const wallMesh = new THREE.Mesh(wallGeo, wallMat);
-    wallMesh.position.y = H / 2;
-    wallMesh.castShadow = true;
-    wallMesh.receiveShadow = true;
-    this.rootGroup.add(wallMesh);
+    const useCustomPoly = state.roofType === 'flat-tilt' && Array.isArray(state.mapPolygonXY) && state.mapPolygonXY.length >= 3;
+    if (useCustomPoly) {
+      const shape = new THREE.Shape();
+      state.mapPolygonXY.forEach(([px, py], idx) => {
+        if (idx === 0) shape.moveTo(px, py);
+        else shape.lineTo(px, py);
+      });
+      shape.closePath();
+      const wallGeo = new THREE.ExtrudeGeometry(shape, { depth: H, bevelEnabled: false });
+      wallGeo.rotateX(-Math.PI / 2);
+      const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+      wallMesh.castShadow = true;
+      wallMesh.receiveShadow = true;
+      this.rootGroup.add(wallMesh);
+    } else {
+      const wallGeo = new THREE.BoxGeometry(L, H, W);
+      const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+      wallMesh.position.y = H / 2;
+      wallMesh.castShadow = true;
+      wallMesh.receiveShadow = true;
+      this.rootGroup.add(wallMesh);
+    }
 
     // 2. BESS Container Unit next to building (Brand blue)
     if (state.bessKwh > 0) {
@@ -421,28 +437,85 @@ const Scene3D = {
       };
 
       if (state.roofType === 'flat-tilt') {
-        const roofSlabGeo = new THREE.BoxGeometry(L + 0.4, 0.3, W + 0.4);
-        const roofSlab = new THREE.Mesh(roofSlabGeo, roofMat);
-        roofSlab.receiveShadow = true;
-        flatGroup.add(roofSlab);
+        if (useCustomPoly) {
+          const shape = new THREE.Shape();
+          state.mapPolygonXY.forEach(([px, py], idx) => {
+            if (idx === 0) shape.moveTo(px, py);
+            else shape.lineTo(px, py);
+          });
+          shape.closePath();
+          const slabGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.3, bevelEnabled: false });
+          slabGeo.rotateX(-Math.PI / 2);
+          const roofSlab = new THREE.Mesh(slabGeo, roofMat);
+          roofSlab.position.y = -0.15;
+          roofSlab.receiveShadow = true;
+          flatGroup.add(roofSlab);
 
-        // 4 perimeter parapet walls (casts shadow & included in raycasting occluders)
-        addParapet(0, -W / 2 - parapetT / 2, L + 0.4, parapetT);
-        addParapet(0, W / 2 + parapetT / 2, L + 0.4, parapetT);
-        addParapet(-L / 2 - parapetT / 2, 0, parapetT, W + 0.4);
-        addParapet(L / 2 + parapetT / 2, 0, parapetT, W + 0.4);
+          // Perimeter parapet walls along each edge of the drawn satellite polygon
+          const ptsXZ = state.mapPolygonXY.map(([px, py]) => [px, -py]);
+          if (parapetH > 0.01) {
+            for (let i = 0; i < ptsXZ.length; i++) {
+              const [x0, z0] = ptsXZ[i];
+              const [x1, z1] = ptsXZ[(i + 1) % ptsXZ.length];
+              const segLen = Math.hypot(x1 - x0, z1 - z0);
+              if (segLen < 0.05) continue;
+              const angle = Math.atan2(z1 - z0, x1 - x0);
+              const wall = new THREE.Mesh(new THREE.BoxGeometry(segLen + parapetT, parapetH, parapetT), parapetMat);
+              wall.position.set((x0 + x1) / 2, 0.15 + parapetH / 2, (z0 + z1) / 2);
+              wall.rotation.y = -angle;
+              wall.castShadow = true;
+              wall.receiveShadow = true;
+              flatGroup.add(wall);
+            }
+          }
 
-        this.rootGroup.add(flatGroup);
-        activePanelsCount += this.populateSlopePanels(
-          flatGroup,
-          L,
-          W,
-          pW,
-          pH,
-          state,
-          'FLAT',
-          (state.rackTilt * Math.PI) / 180
-        );
+          this.rootGroup.add(flatGroup);
+          let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+          ptsXZ.forEach(([x, z]) => {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (z < minZ) minZ = z;
+            if (z > maxZ) maxZ = z;
+          });
+          const bbL = Math.max(2, maxX - minX);
+          const bbW = Math.max(2, maxZ - minZ);
+          rafterLength = bbW;
+          activePanelsCount += this.populateSlopePanels(
+            flatGroup,
+            bbL,
+            bbW,
+            pW,
+            pH,
+            state,
+            'FLAT',
+            (state.rackTilt * Math.PI) / 180,
+            'none',
+            ptsXZ
+          );
+        } else {
+          const roofSlabGeo = new THREE.BoxGeometry(L + 0.4, 0.3, W + 0.4);
+          const roofSlab = new THREE.Mesh(roofSlabGeo, roofMat);
+          roofSlab.receiveShadow = true;
+          flatGroup.add(roofSlab);
+
+          // 4 perimeter parapet walls (casts shadow & included in raycasting occluders)
+          addParapet(0, -W / 2 - parapetT / 2, L + 0.4, parapetT);
+          addParapet(0, W / 2 + parapetT / 2, L + 0.4, parapetT);
+          addParapet(-L / 2 - parapetT / 2, 0, parapetT, W + 0.4);
+          addParapet(L / 2 + parapetT / 2, 0, parapetT, W + 0.4);
+
+          this.rootGroup.add(flatGroup);
+          activePanelsCount += this.populateSlopePanels(
+            flatGroup,
+            L,
+            W,
+            pW,
+            pH,
+            state,
+            'FLAT',
+            (state.rackTilt * Math.PI) / 180
+          );
+        }
       } else {
         // L-shaped flat roof: Main wing (L x W*0.55) + Secondary wing (L*0.45 x W*0.45)
         const mainW = W * 0.55;
@@ -491,7 +564,32 @@ const Scene3D = {
     return { activePanelsCount, rafterLength };
   },
 
-  populateSlopePanels(parentGroup, availLen, availSlopeWidth, pW, pH, state, sideId, localRackTiltRad, taperMode = 'none') {
+  _pointInPolyWithMargin(px, pz, poly, margin) {
+    let inside = false;
+    const n = poly.length;
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+      const [xi, zi] = poly[i];
+      const [xj, zj] = poly[j];
+      const intersect = ((zi > pz) !== (zj > pz)) &&
+        (px < ((xj - xi) * (pz - zi)) / (zj - zi + 1e-12) + xi);
+      if (intersect) inside = !inside;
+    }
+    if (!inside) return false;
+    if (margin <= 0) return true;
+    const m2 = margin * margin;
+    for (let i = 0; i < n; i++) {
+      const [ax, az] = poly[i];
+      const [bx, bz] = poly[(i + 1) % n];
+      const dx = bx - ax, dz = bz - az;
+      const len2 = dx * dx + dz * dz;
+      const t = len2 > 1e-9 ? Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / len2)) : 0;
+      const cx = ax + t * dx, cz = az + t * dz;
+      if ((px - cx) * (px - cx) + (pz - cz) * (pz - cz) < m2) return false;
+    }
+    return true;
+  },
+
+  populateSlopePanels(parentGroup, availLen, availSlopeWidth, pW, pH, state, sideId, localRackTiltRad, taperMode = 'none', polyClip = null) {
     const setback = state.roofSetback;
     const usableX = Math.max(0, availLen - 2 * setback);
     const usableZ = Math.max(0, availSlopeWidth - 2 * setback);
@@ -524,6 +622,20 @@ const Scene3D = {
       for (let c = 0; c < cols; c++) {
         const posX = startX + c * colStep;
         const posZ = startZ + r * rowStep;
+
+        if (polyClip) {
+          const hx = pW / 2;
+          const hz = (pH * Math.cos(localRackTiltRad)) / 2;
+          const corners = [
+            [posX - hx, posZ - hz],
+            [posX + hx, posZ - hz],
+            [posX - hx, posZ + hz],
+            [posX + hx, posZ + hz]
+          ];
+          if (!corners.every(([cx, cz]) => this._pointInPolyWithMargin(cx, cz, polyClip, setback))) {
+            continue;
+          }
+        }
 
         // Hip clipping, checked per panel against the real slope shape
         // (not by row index: the panel grid does not span the full

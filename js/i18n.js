@@ -384,7 +384,21 @@ const I18n = {
       ltSoiling: 'Debu / Soiling',
       ltTemp: 'Temperatur & Iradiasi Modul',
       ltWiring: 'Kabel DC & Mismatch',
-      ltInverter: 'Inverter & Clipping'
+      ltInverter: 'Inverter & Clipping',
+      mapOpenBtn: 'Gambar Atap di Peta Satelit',
+      mapModalTitle: 'Gambar Poligon Atap di Peta Satelit (Esri World Imagery)',
+      mapModalHint: 'Cari alamat atau tempel koordinat, lalu klik sudut-sudut atap di peta. Titik dapat digeser untuk presisi.',
+      mapSearchPlaceholder: 'Cari alamat / koordinat (mis. -6.2088, 106.8456)',
+      mapSearchBtn: 'Cari',
+      mapLocateBtn: 'Lokasi Saya',
+      mapLabelsBtn: 'Label',
+      mapUndoBtn: 'Undo Titik',
+      mapClearBtn: 'Hapus',
+      mapApplyBtn: 'Terapkan ke Model 3D',
+      mapDrawPrompt: 'Klik minimal {n} sudut atap lagi pada peta satelit.',
+      mapSearching: 'Mencari lokasi...',
+      mapNotFound: 'Lokasi tidak ditemukan. Coba tempel koordinat lat, lon.',
+      mapSearchError: 'Gagal mencari lokasi. Coba masukkan koordinat lat, lon.'
     },
     en: {
       currency: 'Currency',
@@ -760,7 +774,21 @@ const I18n = {
       ltSoiling: 'Soiling',
       ltTemp: 'Irradiance & Temperature',
       ltWiring: 'DC Wiring & Mismatch',
-      ltInverter: 'Inverter & Clipping'
+      ltInverter: 'Inverter & Clipping',
+      mapOpenBtn: 'Draw Roof on Satellite Map',
+      mapModalTitle: 'Draw Roof Polygon on Satellite Map (Esri World Imagery)',
+      mapModalHint: 'Search an address or paste coordinates, then click roof corners on the map. Drag vertices to refine.',
+      mapSearchPlaceholder: 'Search address / coordinates (e.g. -6.2088, 106.8456)',
+      mapSearchBtn: 'Search',
+      mapLocateBtn: 'My Location',
+      mapLabelsBtn: 'Labels',
+      mapUndoBtn: 'Undo Point',
+      mapClearBtn: 'Clear',
+      mapApplyBtn: 'Apply to 3D Model',
+      mapDrawPrompt: 'Click at least {n} more roof corners on the satellite map.',
+      mapSearching: 'Searching location...',
+      mapNotFound: 'Location not found. Try pasting lat, lon coordinates.',
+      mapSearchError: 'Search failed. Try entering lat, lon coordinates directly.'
     }
   },
 

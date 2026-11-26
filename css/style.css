@@ -186,6 +186,35 @@ span[id^="pysam-"],
   font-variant-numeric: tabular-nums;
 }
 
+/* Satellite map roof polygon vertex handles & edge measurements */
+.map-vertex-handle span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #12579B;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 700;
+  border: 2px solid #F5E214;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+  cursor: move;
+}
+.map-edge-label span {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #F5E214;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
 /* Tombol sudut terpotong (chamfer) ala OMICRON. --cut adalah warna
    latar di belakang tombol (dipakai segitiga pemotong sudut). Dipakai
    di landing, paket, dan pembayaran. */
