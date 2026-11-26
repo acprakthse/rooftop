@@ -481,6 +481,37 @@ const Scene3D = {
             }
           }
 
+          // Render interior keepout / 3D obstacle exclusion zones drawn on the satellite map
+          const keepoutPolysXZ = [];
+          const keepoutList = Array.isArray(state.mapKeepouts) ? state.mapKeepouts : [];
+          const ko3dMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.55 });
+          const koFlatMat = new THREE.MeshStandardMaterial({
+            color: 0xbb1326,
+            roughness: 0.85,
+            transparent: true,
+            opacity: 0.45
+          });
+          keepoutList.forEach((ko) => {
+            if (!ko || !Array.isArray(ko.xy) || ko.xy.length < 3) return;
+            const koShape = new THREE.Shape();
+            ko.xy.forEach(([kx, ky], idx) => {
+              if (idx === 0) koShape.moveTo(kx, ky);
+              else koShape.lineTo(kx, ky);
+            });
+            koShape.closePath();
+            const hKo = Math.max(0, Number(ko.heightM) || 0);
+            const is3D = hKo > 0.05;
+            const koGeo = new THREE.ExtrudeGeometry(koShape, { depth: is3D ? hKo : 0.03, bevelEnabled: false });
+            koGeo.rotateX(-Math.PI / 2);
+            const koMesh = new THREE.Mesh(koGeo, is3D ? ko3dMat : koFlatMat);
+            koMesh.position.y = 0.15;
+            koMesh.castShadow = is3D;
+            koMesh.receiveShadow = true;
+            if (!is3D) koMesh.userData = { isWalkway: true }; // flat keepout casts no shadow
+            flatGroup.add(koMesh);
+            keepoutPolysXZ.push(ko.xy.map(([kx, ky]) => [kx, -ky]));
+          });
+
           this.rootGroup.add(flatGroup);
           let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
           ptsXZ.forEach(([x, z]) => {
@@ -502,7 +533,8 @@ const Scene3D = {
             'FLAT',
             (state.rackTilt * Math.PI) / 180,
             'none',
-            ptsXZ
+            ptsXZ,
+            keepoutPolysXZ
           );
         } else {
           const roofSlabGeo = new THREE.BoxGeometry(L + 0.4, 0.3, W + 0.4);
@@ -601,7 +633,7 @@ const Scene3D = {
     return true;
   },
 
-  populateSlopePanels(parentGroup, availLen, availSlopeWidth, pW, pH, state, sideId, localRackTiltRad, taperMode = 'none', polyClip = null) {
+  populateSlopePanels(parentGroup, availLen, availSlopeWidth, pW, pH, state, sideId, localRackTiltRad, taperMode = 'none', polyClip = null, keepoutPolys = null) {
     const setback = state.roofSetback;
     const usableX = Math.max(0, availLen - 2 * setback);
     const usableZ = Math.max(0, availSlopeWidth - 2 * setback);
@@ -635,7 +667,7 @@ const Scene3D = {
         const posX = startX + c * colStep;
         const posZ = startZ + r * rowStep;
 
-        if (polyClip) {
+        if (polyClip || (keepoutPolys && keepoutPolys.length > 0)) {
           const hx = pW / 2;
           const hz = (pH * Math.cos(localRackTiltRad)) / 2;
           const corners = [
@@ -644,8 +676,15 @@ const Scene3D = {
             [posX - hx, posZ + hz],
             [posX + hx, posZ + hz]
           ];
-          if (!corners.every(([cx, cz]) => this._pointInPolyWithMargin(cx, cz, polyClip, setback))) {
+          if (polyClip && !corners.every(([cx, cz]) => this._pointInPolyWithMargin(cx, cz, polyClip, setback))) {
             continue;
+          }
+          if (keepoutPolys && keepoutPolys.length > 0) {
+            const samplePts = [[posX, posZ], ...corners];
+            const hitsKeepout = keepoutPolys.some((koPoly) =>
+              samplePts.some(([sx, sz]) => this._pointInPolyWithMargin(sx, sz, koPoly, 0))
+            );
+            if (hitsKeepout) continue;
           }
         }
 

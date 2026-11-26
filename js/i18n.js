@@ -402,7 +402,12 @@ const I18n = {
       walkwayLabel: 'Jalan Akses:',
       clickModeObstacle: 'Obstacle 3D',
       clickModeWalkway: 'Jalan Akses (Hapus PV)',
-      hintStrongWalkway: 'Klik Modul PV: Hapus PV untuk Jalan Akses Maintenance'
+      hintStrongWalkway: 'Klik Modul PV: Hapus PV untuk Jalan Akses Maintenance',
+      mapModeRoof: '1. Gambar Atap',
+      mapModeKeepout: '2. + Area Tanpa PV / Obstacle',
+      mapKeepoutHeightLabel: 'Tinggi Obstacle (m):',
+      mapFinishKeepoutBtn: 'Selesai Zona',
+      mapKeepoutCountUnit: 'zona tanpa PV'
     },
     en: {
       currency: 'Currency',
@@ -796,7 +801,12 @@ const I18n = {
       walkwayLabel: 'Walkway:',
       clickModeObstacle: '3D Obstacle',
       clickModeWalkway: 'Walkway (Remove PV)',
-      hintStrongWalkway: 'Click PV Module: Remove PV for Maintenance Walkway'
+      hintStrongWalkway: 'Click PV Module: Remove PV for Maintenance Walkway',
+      mapModeRoof: '1. Draw Roof',
+      mapModeKeepout: '2. + No-PV / Obstacle Zone',
+      mapKeepoutHeightLabel: 'Obstacle Height (m):',
+      mapFinishKeepoutBtn: 'Finish Zone',
+      mapKeepoutCountUnit: 'no-PV zone(s)'
     }
   },
 

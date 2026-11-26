@@ -25,7 +25,8 @@ const AppState = {
   currency: 'IDR',
   mapPolygonLatLon: null,
   mapPolygonXY: null,
-  mapPolygonArea: null
+  mapPolygonArea: null,
+  mapKeepouts: []
 };
 
 // 8-point compass names, in azimuth order (0 = North, clockwise).
@@ -308,7 +309,7 @@ function geometryFingerprint() {
     AppState.roofWidth, AppState.roofTilt, AppState.wallHeight,
     AppState.roofSetback, AppState.parapetHeight, AppState.panelOrientation, AppState.rowGap,
     AppState.rackTilt, AppState.bessKwh, AppState.siteLocation,
-    AppState.customModule, AppState.mapPolygonXY,
+    AppState.customModule, AppState.mapPolygonXY, AppState.mapKeepouts,
     [...Scene3D.disabledSlots].sort(),
     [...Scene3D.walkwaySlots].sort()
   ]);
@@ -2426,6 +2427,7 @@ document.addEventListener('DOMContentLoaded', () => {
       AppState.mapPolygonLatLon = null;
       AppState.mapPolygonXY = null;
       AppState.mapPolygonArea = null;
+      AppState.mapKeepouts = [];
       const badge = document.getElementById('map-poly-badge');
       if (badge) badge.classList.add('hidden');
       if (redraw) updateAll();
@@ -2435,6 +2437,7 @@ document.addEventListener('DOMContentLoaded', () => {
       AppState.mapPolygonLatLon = geom.polygonLatLon;
       AppState.mapPolygonXY = geom.polygonXY;
       AppState.mapPolygonArea = geom.areaM2;
+      AppState.mapKeepouts = Array.isArray(geom.keepouts) ? geom.keepouts : [];
 
       const clampedL = Math.max(10, Math.min(50, Math.round(geom.lengthM)));
       const clampedW = Math.max(8, Math.min(32, Math.round(geom.widthM)));
@@ -2451,7 +2454,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const badge = document.getElementById('map-poly-badge');
       const summary = document.getElementById('map-poly-summary');
-      if (summary) summary.textContent = `${geom.areaM2} m² · ${geom.lengthM} × ${geom.widthM} m · Az ${geom.orientationDeg}°`;
+      const koSuffix = geom.keepoutCount > 0 ? ` · ${geom.keepoutCount} obs` : '';
+      if (summary) summary.textContent = `${geom.areaM2} m² · ${geom.lengthM} × ${geom.widthM} m${koSuffix}`;
       if (badge) badge.classList.remove('hidden');
 
       Scene3D.disabledSlots.clear();

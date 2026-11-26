@@ -1,20 +1,31 @@
 /**
  * map-draw.js
- * Free Satellite Map Roof Polygon Drawer (Leaflet + Esri World Imagery + Nominatim).
- * Zero API keys, zero billing. Converts drawn (lat, lon) roof vertices into local ENU
- * meters, computes oriented bounding box (L x W), area, perimeter, and main-edge azimuth,
- * and hands the result to the 3D scene and Stage 1-3 backend pipeline.
+ * Free Satellite Map Roof & Keepout/Obstacle Polygon Drawer
+ * (Leaflet + Esri World Imagery + Nominatim).
+ * Zero API keys, zero billing. Supports drawing 1 main roof polygon plus
+ * multiple interior keepout / 3D obstacle exclusion zones (skylights, HVAC,
+ * shafts, no-PV zones) with custom obstacle height (m).
  */
 
 const MapRoofDrawer = {
   map: null,
   labelLayer: null,
   labelsVisible: true,
-  vertices: [],        // [{ lat, lng }, ...]
-  markers: [],         // Leaflet draggable vertex markers
-  edgeLabels: [],      // Leaflet distance tooltips on each edge
+
+  // Active draw mode: 'roof' | 'keepout'
+  drawMode: 'roof',
+  vertices: [],            // main roof vertices: [{ lat, lng }, ...]
+  markers: [],             // Leaflet draggable markers for active roof
+  edgeLabels: [],          // Leaflet distance labels for active polygon
   polygonLayer: null,
   polylineLayer: null,
+
+  // Interior keepout / obstacle exclusion zones
+  keepouts: [],            // completed: [{ vertices: [{lat,lng},...], heightM: number }, ...]
+  activeKeepout: [],       // currently being drawn keepout vertices
+  activeKeepoutMarkers: [],
+  keepoutLayers: [],       // rendered Leaflet polygons for completed + active keepout
+
   onApplyCallback: null,
   lastComputed: null,
 
@@ -38,6 +49,7 @@ const MapRoofDrawer = {
     const labelsToggle = document.getElementById('map-toggle-labels');
     const searchForm = document.getElementById('map-search-form');
     const locateBtn = document.getElementById('map-locate');
+    const finishKeepoutBtn = document.getElementById('map-finish-keepout');
 
     if (closeBtn) closeBtn.addEventListener('click', () => this.close());
     if (cancelBtn) cancelBtn.addEventListener('click', () => this.close());
@@ -47,13 +59,25 @@ const MapRoofDrawer = {
 
     if (undoBtn) undoBtn.addEventListener('click', () => this.undoVertex());
     if (clearBtn) clearBtn.addEventListener('click', () => this.clearAll());
+    if (finishKeepoutBtn) {
+      finishKeepoutBtn.addEventListener('click', () => this.finishActiveKeepout());
+    }
     if (applyBtn) {
       applyBtn.addEventListener('click', () => {
+        if (this.activeKeepout.length >= 3) this.finishActiveKeepout();
         if (!this.lastComputed) return;
         if (this.onApplyCallback) this.onApplyCallback(this.lastComputed);
         this.close();
       });
     }
+
+    document.querySelectorAll('.map-mode-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const mode = btn.getAttribute('data-map-mode') === 'keepout' ? 'keepout' : 'roof';
+        this.setDrawMode(mode);
+      });
+    });
+
     if (labelsToggle) {
       labelsToggle.addEventListener('click', () => {
         if (!this.map || !this.labelLayer) return;
@@ -85,6 +109,38 @@ const MapRoofDrawer = {
         if (c && this.map) this.map.setView([c[0], c[1]], c[2]);
       });
     });
+  },
+
+  setDrawMode(mode) {
+    if (this.drawMode === 'keepout' && this.activeKeepout.length >= 3) {
+      this.finishActiveKeepout();
+    }
+    this.drawMode = mode;
+    document.querySelectorAll('.map-mode-btn').forEach((b) => {
+      const active = b.getAttribute('data-map-mode') === mode;
+      b.classList.toggle('cam-active', active);
+    });
+    const koControls = document.getElementById('map-keepout-controls');
+    if (koControls) koControls.classList.toggle('hidden', mode !== 'keepout');
+    this._updateMetrics();
+  },
+
+  _currentKeepoutHeight() {
+    const el = document.getElementById('map-keepout-height');
+    const v = el ? parseFloat(el.value) : 1.0;
+    return isFinite(v) && v >= 0 ? Math.min(20, v) : 1.0;
+  },
+
+  finishActiveKeepout() {
+    if (this.activeKeepout.length < 3) return;
+    this.keepouts.push({
+      vertices: this.activeKeepout.map((p) => ({ lat: p.lat, lng: p.lng })),
+      heightM: this._currentKeepoutHeight()
+    });
+    this.activeKeepout = [];
+    this.activeKeepoutMarkers.forEach((m) => this.map && this.map.removeLayer(m));
+    this.activeKeepoutMarkers = [];
+    this._redraw();
   },
 
   open(siteKey, existingLatLon) {
@@ -134,9 +190,11 @@ const MapRoofDrawer = {
       this.map.setView([center[0], center[1]], center[2]);
     }
 
-    // Load existing polygon if present and canvas is currently empty
     if (this.vertices.length === 0 && existingLatLon && existingLatLon.length >= 3) {
+      const prevMode = this.drawMode;
+      this.drawMode = 'roof';
       existingLatLon.forEach(([lat, lon]) => this.addVertex(lat, lon, true));
+      this.drawMode = prevMode;
       this._redraw();
     }
 
@@ -152,30 +210,61 @@ const MapRoofDrawer = {
   },
 
   addVertex(lat, lng, silent = false) {
-    const idx = this.vertices.length;
     const pt = { lat, lng };
-    this.vertices.push(pt);
-
-    const icon = L.divIcon({
-      className: 'map-vertex-handle',
-      html: `<span>${idx + 1}</span>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
-    });
-
-    const marker = L.marker([lat, lng], { draggable: true, icon }).addTo(this.map);
-    marker.on('drag', (ev) => {
-      const pos = ev.target.getLatLng();
-      pt.lat = pos.lat;
-      pt.lng = pos.lng;
-      this._redraw();
-    });
-    this.markers.push(marker);
+    if (this.drawMode === 'keepout') {
+      const idx = this.activeKeepout.length;
+      this.activeKeepout.push(pt);
+      const icon = L.divIcon({
+        className: 'map-keepout-handle',
+        html: `<span>${idx + 1}</span>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
+      });
+      const marker = L.marker([lat, lng], { draggable: true, icon }).addTo(this.map);
+      marker.on('drag', (ev) => {
+        const pos = ev.target.getLatLng();
+        pt.lat = pos.lat;
+        pt.lng = pos.lng;
+        this._redraw();
+      });
+      this.activeKeepoutMarkers.push(marker);
+    } else {
+      const idx = this.vertices.length;
+      this.vertices.push(pt);
+      const icon = L.divIcon({
+        className: 'map-vertex-handle',
+        html: `<span>${idx + 1}</span>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+      const marker = L.marker([lat, lng], { draggable: true, icon }).addTo(this.map);
+      marker.on('drag', (ev) => {
+        const pos = ev.target.getLatLng();
+        pt.lat = pos.lat;
+        pt.lng = pos.lng;
+        this._redraw();
+      });
+      this.markers.push(marker);
+    }
 
     if (!silent) this._redraw();
   },
 
   undoVertex() {
+    if (this.drawMode === 'keepout') {
+      if (this.activeKeepout.length > 0) {
+        this.activeKeepout.pop();
+        const m = this.activeKeepoutMarkers.pop();
+        if (m && this.map) this.map.removeLayer(m);
+        this._redraw();
+        return;
+      }
+      if (this.keepouts.length > 0) {
+        this.keepouts.pop();
+        this._redraw();
+        return;
+      }
+    }
     if (this.vertices.length === 0) return;
     this.vertices.pop();
     const m = this.markers.pop();
@@ -187,6 +276,11 @@ const MapRoofDrawer = {
     this.vertices = [];
     this.markers.forEach((m) => this.map && this.map.removeLayer(m));
     this.markers = [];
+    this.keepouts = [];
+    this.activeKeepout = [];
+    this.activeKeepoutMarkers.forEach((m) => this.map && this.map.removeLayer(m));
+    this.activeKeepoutMarkers = [];
+    this.setDrawMode('roof');
     this._redraw();
   },
 
@@ -196,6 +290,8 @@ const MapRoofDrawer = {
     if (this.polylineLayer) { this.map.removeLayer(this.polylineLayer); this.polylineLayer = null; }
     this.edgeLabels.forEach((l) => this.map.removeLayer(l));
     this.edgeLabels = [];
+    this.keepoutLayers.forEach((l) => this.map.removeLayer(l));
+    this.keepoutLayers = [];
   },
 
   _haversineMeters(a, b) {
@@ -217,7 +313,7 @@ const MapRoofDrawer = {
         color: '#12579B',
         weight: 2.5,
         fillColor: '#F5E214',
-        fillOpacity: 0.32
+        fillOpacity: 0.30
       }).addTo(this.map);
     } else if (latlngs.length === 2) {
       this.polylineLayer = L.polyline(latlngs, {
@@ -227,7 +323,7 @@ const MapRoofDrawer = {
       }).addTo(this.map);
     }
 
-    // Distance label on each segment
+    // Distance label on each roof segment
     const n = this.vertices.length;
     const segCount = n >= 3 ? n : Math.max(0, n - 1);
     for (let i = 0; i < segCount; i++) {
@@ -249,7 +345,41 @@ const MapRoofDrawer = {
       this.edgeLabels.push(lbl);
     }
 
+    // Render completed keepout / obstacle zones (red hatched-style fill)
+    this.keepouts.forEach((ko) => {
+      const pts = ko.vertices.map((v) => [v.lat, v.lng]);
+      if (pts.length < 3) return;
+      const poly = L.polygon(pts, {
+        color: '#BB1326',
+        weight: 2,
+        dashArray: '4 3',
+        fillColor: '#BB1326',
+        fillOpacity: 0.42
+      }).addTo(this.map);
+      this.keepoutLayers.push(poly);
+    });
+
+    // Render currently-being-drawn keepout zone
+    if (this.activeKeepout.length >= 2) {
+      const pts = this.activeKeepout.map((v) => [v.lat, v.lng]);
+      const layer = this.activeKeepout.length >= 3
+        ? L.polygon(pts, { color: '#BB1326', weight: 2, dashArray: '4 3', fillColor: '#BB1326', fillOpacity: 0.35 })
+        : L.polyline(pts, { color: '#BB1326', weight: 2, dashArray: '4 3' });
+      layer.addTo(this.map);
+      this.keepoutLayers.push(layer);
+    }
+
     this._updateMetrics();
+  },
+
+  _polyArea(pts) {
+    let a2 = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const [x0, y0] = pts[i];
+      const [x1, y1] = pts[(i + 1) % pts.length];
+      a2 += x0 * y1 - x1 * y0;
+    }
+    return Math.abs(a2) / 2;
   },
 
   _computeGeometry() {
@@ -264,20 +394,15 @@ const MapRoofDrawer = {
     const mPerDegLat = 111132.92 - 559.82 * Math.cos(2 * latRad) + 1.175 * Math.cos(4 * latRad);
     const mPerDegLon = 111412.84 * Math.cos(latRad) - 93.5 * Math.cos(3 * latRad);
 
-    const xy = this.vertices.map((v) => [
-      (v.lng - centerLon) * mPerDegLon,
-      (v.lat - centerLat) * mPerDegLat
-    ]);
+    const toENU = (v) => [(v.lng - centerLon) * mPerDegLon, (v.lat - centerLat) * mPerDegLat];
+    const xy = this.vertices.map(toENU);
 
-    // Shoelace area & perimeter
-    let area2 = 0;
     let perimeter = 0;
     let longestLen = 0;
-    let longestAngle = 0; // angle of longest edge in ENU (atan2(dy, dx))
+    let longestAngle = 0;
     for (let i = 0; i < n; i++) {
       const [x0, y0] = xy[i];
       const [x1, y1] = xy[(i + 1) % n];
-      area2 += x0 * y1 - x1 * y0;
       const dx = x1 - x0;
       const dy = y1 - y0;
       const seg = Math.hypot(dx, dy);
@@ -287,7 +412,7 @@ const MapRoofDrawer = {
         longestAngle = Math.atan2(dy, dx);
       }
     }
-    const areaM2 = Math.abs(area2) / 2;
+    const grossAreaM2 = this._polyArea(xy);
 
     // Rotate polygon to align longest edge with X axis -> Oriented Bounding Box
     const cosA = Math.cos(-longestAngle);
@@ -304,17 +429,37 @@ const MapRoofDrawer = {
     });
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
-    // Centered in local roof coordinates (x along eave, y perpendicular)
+    const transformPt = ([x, y]) => {
+      const rx = x * cosA - y * sinA - cx;
+      const ry = x * sinA + y * cosA - cy;
+      return [Math.round(rx * 1000) / 1000, Math.round(ry * 1000) / 1000];
+    };
     const centeredAligned = alignedXY.map(([rx, ry]) => [
       Math.round((rx - cx) * 1000) / 1000,
       Math.round((ry - cy) * 1000) / 1000
     ]);
 
+    // Project all completed + active (>=3 pts) keepout zones into the exact same local frame
+    const allKeepouts = [...this.keepouts];
+    if (this.activeKeepout.length >= 3) {
+      allKeepouts.push({ vertices: this.activeKeepout, heightM: this._currentKeepoutHeight() });
+    }
+    let keepoutAreaM2 = 0;
+    const keepoutsXY = allKeepouts.map((ko) => {
+      const pts = ko.vertices.map((v) => transformPt(toENU(v)));
+      const a = this._polyArea(pts);
+      keepoutAreaM2 += a;
+      return {
+        xy: pts,
+        heightM: ko.heightM,
+        areaM2: Math.round(a * 10) / 10
+      };
+    });
+
     const lengthM = maxX - minX;
     const widthM = maxY - minY;
 
     // Normal to longest edge in ENU -> Compass Azimuth (0=N, 90=E, 180=S, 270=W)
-    // Pick the normal direction facing the equator (North for Southern Hemisphere, South for Northern)
     const nx1 = -Math.sin(longestAngle);
     const ny1 = Math.cos(longestAngle);
     const az1 = ((Math.atan2(nx1, ny1) * 180) / Math.PI + 360) % 360;
@@ -333,7 +478,10 @@ const MapRoofDrawer = {
         Math.round(v.lng * 1e6) / 1e6
       ]),
       polygonXY: centeredAligned,
-      areaM2: Math.round(areaM2 * 10) / 10,
+      keepouts: keepoutsXY,
+      areaM2: Math.round(Math.max(0, grossAreaM2 - keepoutAreaM2) * 10) / 10,
+      grossAreaM2: Math.round(grossAreaM2 * 10) / 10,
+      keepoutCount: keepoutsXY.length,
       perimeterM: Math.round(perimeter * 10) / 10,
       lengthM: Math.round(lengthM * 10) / 10,
       widthM: Math.round(widthM * 10) / 10,
@@ -346,12 +494,17 @@ const MapRoofDrawer = {
   _updateMetrics() {
     const infoEl = document.getElementById('map-metrics');
     const applyBtn = document.getElementById('map-apply');
+    const finishBtn = document.getElementById('map-finish-keepout');
     const geom = this._computeGeometry();
     this.lastComputed = geom;
 
+    if (finishBtn) {
+      finishBtn.disabled = this.activeKeepout.length < 3;
+    }
+
     if (!geom) {
       if (infoEl) {
-        const left = 3 - this.vertices.length;
+        const left = Math.max(1, 3 - this.vertices.length);
         infoEl.textContent = I18n.t('mapDrawPrompt', { n: left });
       }
       if (applyBtn) applyBtn.disabled = true;
@@ -359,14 +512,14 @@ const MapRoofDrawer = {
     }
 
     if (infoEl) {
-      infoEl.textContent = `${geom.areaM2} m² · ${geom.lengthM} × ${geom.widthM} m · Az ${geom.orientationDeg}° · (${geom.centerLat}, ${geom.centerLon})`;
+      const koTxt = geom.keepoutCount > 0 ? ` · ${geom.keepoutCount} ${I18n.t('mapKeepoutCountUnit')}` : '';
+      infoEl.textContent = `${geom.areaM2} m² · ${geom.lengthM} × ${geom.widthM} m · Az ${geom.orientationDeg}°${koTxt}`;
     }
     if (applyBtn) applyBtn.disabled = false;
   },
 
   async searchAddress(query) {
     const st = document.getElementById('map-search-status');
-    // Support direct "lat, lon" paste (e.g. from Google Maps)
     const coordMatch = query.match(/^\s*(-?\d+(?:\.\d+)?)\s*[,\s]\s*(-?\d+(?:\.\d+)?)\s*$/);
     if (coordMatch) {
       const lat = parseFloat(coordMatch[1]);

@@ -833,9 +833,22 @@
         <button id="map-close" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none px-1.5 py-0.5 rounded hover:bg-bgpanel transition" aria-label="Close">×</button>
       </div>
 
-      <!-- Search & Quick Jump Toolbar -->
+      <!-- Search, Draw Mode & Keepout Toolbar -->
       <div class="px-4 sm:px-5 py-2 bg-bgpanel/70 border-b border-slate-200 flex flex-wrap items-center gap-2 shrink-0">
-        <form id="map-search-form" class="flex items-center gap-1.5 flex-1 min-w-[240px]">
+        <!-- Draw Mode Toggle: Roof vs Keepout / Obstacle -->
+        <div class="inline-flex items-center p-0.5 rounded-lg bg-white border border-slate-300 shadow-xs">
+          <button type="button" data-map-mode="roof" class="map-mode-btn cam-active px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-700 hover:bg-bgpanel transition" data-i18n="mapModeRoof">1. Gambar Atap</button>
+          <button type="button" data-map-mode="keepout" class="map-mode-btn px-2.5 py-1 rounded-md text-[11px] font-semibold text-slate-700 hover:bg-bgpanel transition" data-i18n="mapModeKeepout">2. + Area Tanpa PV / Obstacle</button>
+        </div>
+
+        <!-- Keepout Height & Finish Zone controls (shown when in keepout mode) -->
+        <div id="map-keepout-controls" class="hidden flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-50 border border-red-200 text-[11px]">
+          <label for="map-keepout-height" class="text-[#BB1326] font-medium whitespace-nowrap" data-i18n="mapKeepoutHeightLabel">Tinggi Obstacle (m):</label>
+          <input id="map-keepout-height" type="number" min="0" max="20" step="0.2" value="1.0" class="w-14 bg-white border border-red-300 rounded px-1.5 py-0.5 text-xs text-slate-800 tabular-nums" title="0 m = datar/skylight (tanpa bayangan), >0 m = obstacle 3D" />
+          <button id="map-finish-keepout" type="button" disabled class="px-2 py-0.5 rounded bg-[#BB1326] hover:bg-red-800 text-white font-semibold transition disabled:opacity-40" data-i18n="mapFinishKeepoutBtn">Selesai Zona</button>
+        </div>
+
+        <form id="map-search-form" class="flex items-center gap-1.5 flex-1 min-w-[210px]">
           <input id="map-search-input" type="text" placeholder="Cari alamat / koordinat (mis. -6.2088, 106.8456)" data-i18n-placeholder="mapSearchPlaceholder" class="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-brand" />
           <button type="submit" class="px-3 py-1.5 rounded-lg bg-[#12579B] hover:bg-[#0e467d] text-white text-xs font-semibold transition" data-i18n="mapSearchBtn">Cari</button>
         </form>
@@ -872,10 +885,10 @@
   <!-- Modular JS Scripts -->
   <script src="js/energy-model.js?v=11"></script>
   <script src="js/solar.js?v=8"></script>
-  <script src="js/scene3d.js?v=13"></script>
+  <script src="js/scene3d.js?v=14"></script>
   <script src="js/shading.js?v=10"></script>
-  <script src="js/map-draw.js?v=2"></script>
-  <script src="js/i18n.js?v=30"></script>
-  <script src="js/main.js?v=26"></script>
+  <script src="js/map-draw.js?v=3"></script>
+  <script src="js/i18n.js?v=31"></script>
+  <script src="js/main.js?v=27"></script>
 </body>
 </html>
