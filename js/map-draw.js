@@ -558,6 +558,8 @@ const MapRoofDrawer = {
     const infoEl = document.getElementById('map-metrics');
     const applyBtn = document.getElementById('map-apply');
     const finishBtn = document.getElementById('map-finish-keepout');
+    const limitAlert = document.getElementById('map-limit-alert');
+    const contactLink = document.getElementById('map-contact-admin');
     const geom = this._computeGeometry();
     this.lastComputed = geom;
 
@@ -566,6 +568,7 @@ const MapRoofDrawer = {
     }
 
     if (!geom) {
+      if (limitAlert) limitAlert.classList.add('hidden');
       if (infoEl) {
         infoEl.classList.remove('text-red-600');
         infoEl.classList.add('text-brand');
@@ -585,6 +588,11 @@ const MapRoofDrawer = {
     }
 
     if (!check.ok) {
+      if (limitAlert) limitAlert.classList.toggle('hidden', check.reason !== 'too_large');
+      if (check.reason === 'too_large' && contactLink) {
+        const msg = `Halo Admin, saya ingin menganalisa PLTS atap dengan luas sekitar ${Math.round(geom.grossAreaM2).toLocaleString('id-ID')} m² (${geom.lengthM} × ${geom.widthM} m) yang melebihi batas aplikasi.`;
+        contactLink.href = 'https://wa.me/628568358006?text=' + encodeURIComponent(msg);
+      }
       if (infoEl) {
         infoEl.classList.remove('text-brand');
         infoEl.classList.add('text-red-600');
@@ -602,6 +610,7 @@ const MapRoofDrawer = {
       return;
     }
 
+    if (limitAlert) limitAlert.classList.add('hidden');
     if (infoEl) {
       infoEl.classList.remove('text-red-600');
       infoEl.classList.add('text-brand');
