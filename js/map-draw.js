@@ -345,8 +345,8 @@ const MapRoofDrawer = {
       this.edgeLabels.push(lbl);
     }
 
-    // Render completed keepout / obstacle zones (red hatched-style fill)
-    this.keepouts.forEach((ko) => {
+    // Render completed keepout / obstacle zones (red fill + numbered label)
+    this.keepouts.forEach((ko, idx) => {
       const pts = ko.vertices.map((v) => [v.lat, v.lng]);
       if (pts.length < 3) return;
       const poly = L.polygon(pts, {
@@ -357,6 +357,19 @@ const MapRoofDrawer = {
         fillOpacity: 0.42
       }).addTo(this.map);
       this.keepoutLayers.push(poly);
+
+      const cLat = ko.vertices.reduce((s, v) => s + v.lat, 0) / ko.vertices.length;
+      const cLng = ko.vertices.reduce((s, v) => s + v.lng, 0) / ko.vertices.length;
+      const tag = L.marker([cLat, cLng], {
+        interactive: false,
+        icon: L.divIcon({
+          className: 'map-keepout-tag',
+          html: `<span>Obs ${idx + 1} (${ko.heightM}m)</span>`,
+          iconSize: [74, 18],
+          iconAnchor: [37, 9]
+        })
+      }).addTo(this.map);
+      this.keepoutLayers.push(tag);
     });
 
     // Render currently-being-drawn keepout zone
@@ -369,7 +382,40 @@ const MapRoofDrawer = {
       this.keepoutLayers.push(layer);
     }
 
+    this._renderKeepoutChips();
     this._updateMetrics();
+  },
+
+  removeKeepout(index) {
+    if (index < 0 || index >= this.keepouts.length) return;
+    this.keepouts.splice(index, 1);
+    this._redraw();
+  },
+
+  _renderKeepoutChips() {
+    const listEl = document.getElementById('map-keepout-list');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    if (this.keepouts.length === 0) {
+      listEl.classList.add('hidden');
+      return;
+    }
+    listEl.classList.remove('hidden');
+    this.keepouts.forEach((ko, idx) => {
+      const chip = document.createElement('span');
+      chip.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-[11px] font-medium text-[#BB1326]';
+      const txt = document.createElement('span');
+      txt.textContent = `Obs ${idx + 1} · ${ko.heightM}m`;
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'hover:text-red-900 font-bold leading-none px-0.5';
+      del.setAttribute('aria-label', `Hapus Obs ${idx + 1}`);
+      del.textContent = '×';
+      del.addEventListener('click', () => this.removeKeepout(idx));
+      chip.appendChild(txt);
+      chip.appendChild(del);
+      listEl.appendChild(chip);
+    });
   },
 
   _polyArea(pts) {

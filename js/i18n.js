@@ -406,7 +406,7 @@ const I18n = {
       mapModeRoof: '1. Gambar Atap',
       mapModeKeepout: '2. + Area Tanpa PV / Obstacle',
       mapKeepoutHeightLabel: 'Tinggi Obstacle (m):',
-      mapFinishKeepoutBtn: 'Selesai Zona',
+      mapFinishKeepoutBtn: 'Simpan & Tambah Lagi',
       mapKeepoutCountUnit: 'zona tanpa PV'
     },
     en: {
@@ -805,7 +805,7 @@ const I18n = {
       mapModeRoof: '1. Draw Roof',
       mapModeKeepout: '2. + No-PV / Obstacle Zone',
       mapKeepoutHeightLabel: 'Obstacle Height (m):',
-      mapFinishKeepoutBtn: 'Finish Zone',
+      mapFinishKeepoutBtn: 'Save & Add Another',
       mapKeepoutCountUnit: 'no-PV zone(s)'
     }
   },
