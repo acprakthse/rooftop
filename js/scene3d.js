@@ -659,11 +659,25 @@ const Scene3D = {
     });
     const frameMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.5 });
     const obstacleMat = new THREE.MeshStandardMaterial({ color: 0xF5E214, roughness: 0.4 });
+    const walkMat = new THREE.MeshStandardMaterial({
+      color: 0xe2e8f0,
+      roughness: 0.9,
+      transparent: true,
+      opacity: 0.78
+    });
 
+    const frameGeo = new THREE.BoxGeometry(pW, 0.045, pH);
+    const cellGeo = new THREE.BoxGeometry(pW - 0.05, 0.052, pH - 0.05);
+    const obsGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+    const walkGeo = new THREE.BoxGeometry(pW * 0.9, 0.025, Math.max(0.5, pH * Math.cos(localRackTiltRad) * 0.9));
+
+    const MAX_PANELS = 3500;
     let count = 0;
 
     for (let r = 0; r < rows; r++) {
+      if (this.panelMeshes.length >= MAX_PANELS) break;
       for (let c = 0; c < cols; c++) {
+        if (this.panelMeshes.length >= MAX_PANELS) break;
         const posX = startX + c * colStep;
         const posZ = startZ + r * rowStep;
 
@@ -712,7 +726,6 @@ const Scene3D = {
 
         if (this.disabledSlots.has(slotKey)) {
           // Render 3D Obstacle (HVAC unit / Skylight / Chimney box)
-          const obsGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
           const obsMesh = new THREE.Mesh(obsGeo, obstacleMat);
           obsMesh.position.set(posX, 0.6, posZ);
           obsMesh.castShadow = true;
@@ -722,13 +735,6 @@ const Scene3D = {
           this.panelMeshes.push(obsMesh);
         } else if (this.walkwaySlots.has(slotKey)) {
           // Render flat maintenance access walkway (no PV, no shadow casting)
-          const walkGeo = new THREE.BoxGeometry(pW * 0.9, 0.025, Math.max(0.5, pH * Math.cos(localRackTiltRad) * 0.9));
-          const walkMat = new THREE.MeshStandardMaterial({
-            color: 0xe2e8f0,
-            roughness: 0.9,
-            transparent: true,
-            opacity: 0.78
-          });
           const walkMesh = new THREE.Mesh(walkGeo, walkMat);
           walkMesh.position.set(posX, 0.165, posZ);
           walkMesh.castShadow = false;
@@ -742,10 +748,7 @@ const Scene3D = {
           holder.rotation.x = localRackTiltRad;
           holder.userData = { slotKey };
 
-          const frameGeo = new THREE.BoxGeometry(pW, 0.045, pH);
           const frameMesh = new THREE.Mesh(frameGeo, frameMat);
-
-          const cellGeo = new THREE.BoxGeometry(pW - 0.05, 0.052, pH - 0.05);
           const cellMesh = new THREE.Mesh(cellGeo, pvMat);
           cellMesh.castShadow = true;
           cellMesh.receiveShadow = true;

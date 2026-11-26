@@ -29,11 +29,28 @@ const MapRoofDrawer = {
   onApplyCallback: null,
   lastComputed: null,
 
+  // Performance & realism guardrails (browser Three.js + 3D raycast + 1GiB Cloud Run):
+  // 10,000 m2 (1 ha, ~1.4x FIFA pitch, ~2,500-3,000 panels / ~1.5-1.8 MWp), max side 200 m.
+  MAX_ROOF_AREA_M2: 10000,
+  MAX_ROOF_DIM_M: 200,
+  MIN_ROOF_AREA_M2: 10,
+
   SITE_CENTERS: {
     jakarta: [-6.2088, 106.8456, 18],
     bali: [-8.6705, 115.2126, 18],
     riau: [1.1301, 104.0529, 18],
     oskarshamn: [57.2657, 16.4474, 18]
+  },
+
+  _validateGeometry(geom) {
+    if (!geom) return { ok: false, reason: 'incomplete' };
+    if (geom.grossAreaM2 > this.MAX_ROOF_AREA_M2 || geom.lengthM > this.MAX_ROOF_DIM_M || geom.widthM > this.MAX_ROOF_DIM_M) {
+      return { ok: false, reason: 'too_large' };
+    }
+    if (geom.grossAreaM2 < this.MIN_ROOF_AREA_M2) {
+      return { ok: false, reason: 'too_small' };
+    }
+    return { ok: true, reason: null };
   },
 
   init(onApply) {
@@ -65,7 +82,7 @@ const MapRoofDrawer = {
     if (applyBtn) {
       applyBtn.addEventListener('click', () => {
         if (this.activeKeepout.length >= 3) this.finishActiveKeepout();
-        if (!this.lastComputed) return;
+        if (!this.lastComputed || !this._validateGeometry(this.lastComputed).ok) return;
         if (this.onApplyCallback) this.onApplyCallback(this.lastComputed);
         this.close();
       });
@@ -550,6 +567,8 @@ const MapRoofDrawer = {
 
     if (!geom) {
       if (infoEl) {
+        infoEl.classList.remove('text-red-600');
+        infoEl.classList.add('text-brand');
         const left = Math.max(1, 3 - this.vertices.length);
         infoEl.textContent = I18n.t('mapDrawPrompt', { n: left });
       }
@@ -557,7 +576,35 @@ const MapRoofDrawer = {
       return;
     }
 
+    const check = this._validateGeometry(geom);
+    if (this.polygonLayer && typeof this.polygonLayer.setStyle === 'function') {
+      this.polygonLayer.setStyle(check.ok
+        ? { color: '#12579B', fillColor: '#F5E214', fillOpacity: 0.30 }
+        : { color: '#DC2626', fillColor: '#DC2626', fillOpacity: 0.28 }
+      );
+    }
+
+    if (!check.ok) {
+      if (infoEl) {
+        infoEl.classList.remove('text-brand');
+        infoEl.classList.add('text-red-600');
+        infoEl.textContent = check.reason === 'too_large'
+          ? I18n.t('mapTooLarge', {
+            area: Math.round(geom.grossAreaM2).toLocaleString('id-ID'),
+            l: geom.lengthM,
+            w: geom.widthM,
+            maxArea: this.MAX_ROOF_AREA_M2.toLocaleString('id-ID'),
+            maxDim: this.MAX_ROOF_DIM_M
+          })
+          : I18n.t('mapTooSmall', { area: geom.grossAreaM2, minArea: this.MIN_ROOF_AREA_M2 });
+      }
+      if (applyBtn) applyBtn.disabled = true;
+      return;
+    }
+
     if (infoEl) {
+      infoEl.classList.remove('text-red-600');
+      infoEl.classList.add('text-brand');
       const koTxt = geom.keepoutCount > 0 ? ` · ${geom.keepoutCount} ${I18n.t('mapKeepoutCountUnit')}` : '';
       infoEl.textContent = `${geom.areaM2} m² · ${geom.lengthM} × ${geom.widthM} m · Az ${geom.orientationDeg}°${koTxt}`;
     }
