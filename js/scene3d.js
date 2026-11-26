@@ -20,6 +20,7 @@ const Scene3D = {
   walkwaySlots: new Set(),
   clickMode: 'obstacle', // 'obstacle' | 'walkway'
   onToggleObstacle: null,
+  sceneSpan: 36,
 
   init(containerId, onToggleCallback) {
     const container = document.getElementById(containerId);
@@ -27,9 +28,11 @@ const Scene3D = {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0xF2F4F5);
-    this.scene.fog = new THREE.FogExp2(0xF2F4F5, 0.0085);
+    // Linear far fog only fades the distant horizon (>240m) so large roofs
+    // stay crisp and never wash out to white when zoomed out.
+    this.scene.fog = new THREE.Fog(0xF2F4F5, 240, 750);
 
-    this.camera = new THREE.PerspectiveCamera(42, container.clientWidth / container.clientHeight, 0.1, 400);
+    this.camera = new THREE.PerspectiveCamera(42, container.clientWidth / container.clientHeight, 0.5, 1400);
     this.camera.position.set(28, 22, 30);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -43,21 +46,25 @@ const Scene3D = {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.06;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.03;
+    this.controls.maxDistance = 420;
     this.controls.target.set(0, 4, 0);
 
     // Ambient & Directional Sun Light
     const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0xe2e8f0, 0.55);
     this.scene.add(hemiLight);
 
-    this.sunLight = new THREE.DirectionalLight(0xfffbeb, 1.5);
+    this.sunLight = new THREE.DirectionalLight(0xfffbeb, 1.35);
     this.sunLight.castShadow = true;
     this.sunLight.shadow.mapSize.width = 2048;
     this.sunLight.shadow.mapSize.height = 2048;
+    this.sunLight.shadow.bias = -0.0005;
     const d = 35;
     this.sunLight.shadow.camera.left = -d;
     this.sunLight.shadow.camera.right = d;
     this.sunLight.shadow.camera.top = d;
     this.sunLight.shadow.camera.bottom = -d;
+    this.sunLight.shadow.camera.near = 1;
+    this.sunLight.shadow.camera.far = 250;
     this.scene.add(this.sunLight);
 
     // Glowing Sun Indicator Sphere
@@ -66,15 +73,15 @@ const Scene3D = {
     this.sunSphere = new THREE.Mesh(sunGeo, sunMat);
     this.scene.add(this.sunSphere);
 
-    // Ground Grid
-    const groundGeo = new THREE.PlaneGeometry(160, 160);
+    // Ground Grid (sized to accommodate up to 200 m commercial roofs)
+    const groundGeo = new THREE.PlaneGeometry(520, 520);
     const groundMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.95 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    const grid = new THREE.GridHelper(100, 50, 0xcbd5e1, 0xe2e8f0);
+    const grid = new THREE.GridHelper(320, 80, 0xcbd5e1, 0xe2e8f0);
     grid.position.y = 0.02;
     this.scene.add(grid);
 
@@ -144,12 +151,8 @@ const Scene3D = {
       }
     });
 
-    window.addEventListener('resize', () => {
-      if (!container) return;
-      this.camera.aspect = container.clientWidth / container.clientHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(container.clientWidth, container.clientHeight);
-    });
+    this.container = container;
+    window.addEventListener('resize', () => this.onResize());
 
     const animate = () => {
       requestAnimationFrame(animate);
@@ -157,6 +160,16 @@ const Scene3D = {
       this.renderer.render(this.scene, this.camera);
     };
     animate();
+  },
+
+  onResize() {
+    if (!this.container || !this.camera || !this.renderer) return;
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    if (w <= 0 || h <= 0) return;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(w, h);
   },
 
   snapshot() {
@@ -171,19 +184,22 @@ const Scene3D = {
     }
   },
 
-  setCameraPreset(preset) {    if (preset === 'top') {
-      this.camera.position.set(0, 42, 0.01);
+  setCameraPreset(preset) {
+    const s = Math.max(32, this.sceneSpan || 36);
+    if (preset === 'top') {
+      this.camera.position.set(0, s * 1.35, 0.01);
     } else if (preset === 'side') {
-      this.camera.position.set(0, 10, 38);
+      this.camera.position.set(0, Math.max(10, s * 0.32), s * 1.15);
     } else {
-      this.camera.position.set(28, 22, 30);
+      this.camera.position.set(s * 0.85, s * 0.68, s * 0.90);
     }
     this.controls.target.set(0, 4, 0);
     this.controls.update();
   },
 
   updateSunPosition(sunHour, latDeg) {
-    const radius = 38;
+    const span = Math.max(36, this.sceneSpan || 36);
+    const radius = Math.max(44, span * 0.9);
     let x, y, z, elevDeg;
     if (typeof Solar !== 'undefined' && typeof latDeg === 'number' && isFinite(latDeg)) {
       // Equinox (day 80) shows true hemisphere sun arc: rises East (+X),
@@ -204,8 +220,21 @@ const Scene3D = {
       elevDeg = Math.round((Math.atan2(y, Math.hypot(x, z)) * 180) / Math.PI);
     }
 
+    // Keep shadow frustum wide enough for large roofs up to 200 m
+    const d = Math.max(35, span * 0.72);
+    if (Math.abs(this.sunLight.shadow.camera.right - d) > 1) {
+      this.sunLight.shadow.camera.left = -d;
+      this.sunLight.shadow.camera.right = d;
+      this.sunLight.shadow.camera.top = d;
+      this.sunLight.shadow.camera.bottom = -d;
+      this.sunLight.shadow.camera.far = Math.max(250, radius * 2.8);
+      this.sunLight.shadow.camera.updateProjectionMatrix();
+    }
+
     this.sunLight.position.set(x, y, z);
     this.sunSphere.position.set(x, y, z);
+    const sunScale = Math.max(1, span / 40);
+    this.sunSphere.scale.setScalar(sunScale);
     return elevDeg;
   },
 
@@ -221,6 +250,7 @@ const Scene3D = {
 
     const L = state.roofLength;
     const W = state.roofWidth;
+    this.sceneSpan = Math.max(36, Math.hypot(L, W));
     const H = state.wallHeight;
     const tiltRad = (state.roofTilt * Math.PI) / 180;
 
@@ -522,6 +552,7 @@ const Scene3D = {
           });
           const bbL = Math.max(2, maxX - minX);
           const bbW = Math.max(2, maxZ - minZ);
+          this.sceneSpan = Math.max(36, Math.hypot(bbL, bbW));
           rafterLength = bbW;
           activePanelsCount += this.populateSlopePanels(
             flatGroup,
@@ -750,6 +781,7 @@ const Scene3D = {
 
           const frameMesh = new THREE.Mesh(frameGeo, frameMat);
           const cellMesh = new THREE.Mesh(cellGeo, pvMat);
+          cellMesh.position.y = 0.015;
           cellMesh.castShadow = true;
           cellMesh.receiveShadow = true;
 

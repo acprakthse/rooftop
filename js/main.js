@@ -2523,6 +2523,7 @@ document.addEventListener('DOMContentLoaded', () => {
       Scene3D.disabledSlots.clear();
       Scene3D.walkwaySlots.clear();
       updateAll();
+      Scene3D.setCameraPreset('iso');
     });
 
     const openMapBtn = document.getElementById('btn-open-map');
@@ -2542,6 +2543,33 @@ document.addEventListener('DOMContentLoaded', () => {
     ['roof-length', 'roof-width'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('input', () => { if (AppState.mapPolygonXY) clearMapPolygon(false); });
+    });
+  }
+
+  // 3D Viewport Fullscreen Expand / Collapse toggle
+  const expandBtn = document.getElementById('btn-viewport-expand');
+  const vpCard = document.getElementById('viewport-card');
+  const vpStage = document.getElementById('viewport-stage');
+  if (expandBtn && vpCard && vpStage) {
+    let vpExpanded = false;
+    const setExpanded = (on) => {
+      vpExpanded = on;
+      vpCard.classList.toggle('fixed', on);
+      vpCard.classList.toggle('inset-3', on);
+      vpCard.classList.toggle('z-50', on);
+      vpCard.classList.toggle('shadow-2xl', on);
+      vpStage.classList.toggle('flex-1', on);
+      vpStage.classList.toggle('!h-auto', on);
+      vpStage.classList.toggle('!max-h-none', on);
+      expandBtn.textContent = I18n.t(on ? 'viewportCollapse' : 'viewportExpand');
+      expandBtn.setAttribute('data-i18n', on ? 'viewportCollapse' : 'viewportExpand');
+      setTimeout(() => {
+        if (Scene3D && typeof Scene3D.onResize === 'function') Scene3D.onResize();
+      }, 30);
+    };
+    expandBtn.addEventListener('click', () => setExpanded(!vpExpanded));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && vpExpanded) setExpanded(false);
     });
   }
 

@@ -495,8 +495,8 @@
       </div>
 
       <!-- 3D WEBGL VIEWPORT + SOLAR TIME BAR -->
-      <div class="eng-card rounded-xl overflow-hidden flex flex-col">
-        <div class="relative h-[480px] sm:h-[540px] lg:h-[600px]">
+      <div id="viewport-card" class="eng-card rounded-xl overflow-hidden flex flex-col">
+        <div id="viewport-stage" class="relative h-[560px] sm:h-[640px] lg:h-[74vh] lg:min-h-[640px] lg:max-h-[860px]">
           <!-- Top Overlay HUD -->
           <div class="absolute top-3 left-3 z-10 flex flex-wrap items-center gap-1.5 pointer-events-none">
             <span id="hud-context" class="px-2.5 py-1 rounded-lg bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-sm text-[11px] font-sans font-semibold text-brand">
@@ -510,11 +510,14 @@
             </span>
           </div>
 
-          <!-- Camera Preset Segmented Controls -->
-          <div class="absolute top-3 right-3 z-10 inline-flex items-center p-0.5 rounded-lg bg-white/90 backdrop-blur-md border border-slate-200/90 shadow-sm">
-            <button data-cam="iso" class="cam-btn cam-active px-2.5 py-1 rounded-md text-[11px] font-sans font-medium text-slate-700 hover:bg-bgpanel transition">Iso 3D</button>
-            <button data-cam="top" class="cam-btn px-2.5 py-1 rounded-md text-[11px] font-sans font-medium text-slate-700 hover:bg-bgpanel transition" data-i18n="camTop">Denah Atas</button>
-            <button data-cam="side" class="cam-btn px-2.5 py-1 rounded-md text-[11px] font-sans font-medium text-slate-700 hover:bg-bgpanel transition" data-i18n="camSide">Elevasi</button>
+          <!-- Camera Preset Segmented Controls + Fullscreen Expand -->
+          <div class="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+            <div class="inline-flex items-center p-0.5 rounded-lg bg-white/90 backdrop-blur-md border border-slate-200/90 shadow-sm">
+              <button data-cam="iso" class="cam-btn cam-active px-2.5 py-1 rounded-md text-[11px] font-sans font-medium text-slate-700 hover:bg-bgpanel transition">Iso 3D</button>
+              <button data-cam="top" class="cam-btn px-2.5 py-1 rounded-md text-[11px] font-sans font-medium text-slate-700 hover:bg-bgpanel transition" data-i18n="camTop">Denah Atas</button>
+              <button data-cam="side" class="cam-btn px-2.5 py-1 rounded-md text-[11px] font-sans font-medium text-slate-700 hover:bg-bgpanel transition" data-i18n="camSide">Elevasi</button>
+            </div>
+            <button id="btn-viewport-expand" type="button" class="px-2.5 py-1.5 rounded-lg bg-white/90 backdrop-blur-md border border-slate-200/90 shadow-sm text-[11px] font-sans font-semibold text-brand hover:bg-bgpanel transition" data-i18n="viewportExpand">Perluas 3D</button>
           </div>
 
           <!-- Bottom Hint & Click Mode Overlay -->
@@ -896,10 +899,10 @@
   <!-- Modular JS Scripts -->
   <script src="js/energy-model.js?v=11"></script>
   <script src="js/solar.js?v=8"></script>
-  <script src="js/scene3d.js?v=15"></script>
+  <script src="js/scene3d.js?v=16"></script>
   <script src="js/shading.js?v=10"></script>
   <script src="js/map-draw.js?v=5"></script>
-  <script src="js/i18n.js?v=35"></script>
-  <script src="js/main.js?v=28"></script>
+  <script src="js/i18n.js?v=36"></script>
+  <script src="js/main.js?v=29"></script>
 </body>
 </html>
