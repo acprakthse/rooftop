@@ -398,7 +398,11 @@ const I18n = {
       mapDrawPrompt: 'Klik minimal {n} sudut atap lagi pada peta satelit.',
       mapSearching: 'Mencari lokasi...',
       mapNotFound: 'Lokasi tidak ditemukan. Coba tempel koordinat lat, lon.',
-      mapSearchError: 'Gagal mencari lokasi. Coba masukkan koordinat lat, lon.'
+      mapSearchError: 'Gagal mencari lokasi. Coba masukkan koordinat lat, lon.',
+      walkwayLabel: 'Jalan Akses:',
+      clickModeObstacle: 'Obstacle 3D',
+      clickModeWalkway: 'Jalan Akses (Hapus PV)',
+      hintStrongWalkway: 'Klik Modul PV: Hapus PV untuk Jalan Akses Maintenance'
     },
     en: {
       currency: 'Currency',
@@ -788,7 +792,11 @@ const I18n = {
       mapDrawPrompt: 'Click at least {n} more roof corners on the satellite map.',
       mapSearching: 'Searching location...',
       mapNotFound: 'Location not found. Try pasting lat, lon coordinates.',
-      mapSearchError: 'Search failed. Try entering lat, lon coordinates directly.'
+      mapSearchError: 'Search failed. Try entering lat, lon coordinates directly.',
+      walkwayLabel: 'Walkway:',
+      clickModeObstacle: '3D Obstacle',
+      clickModeWalkway: 'Walkway (Remove PV)',
+      hintStrongWalkway: 'Click PV Module: Remove PV for Maintenance Walkway'
     }
   },
 

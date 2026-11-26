@@ -17,6 +17,8 @@ const Scene3D = {
   mouse: new THREE.Vector2(),
   panelMeshes: [],
   disabledSlots: new Set(),
+  walkwaySlots: new Set(),
+  clickMode: 'obstacle', // 'obstacle' | 'walkway'
   onToggleObstacle: null,
 
   init(containerId, onToggleCallback) {
@@ -122,10 +124,20 @@ const Scene3D = {
         }
         if (obj && obj.userData.slotKey) {
           const key = obj.userData.slotKey;
-          if (this.disabledSlots.has(key)) {
-            this.disabledSlots.delete(key);
+          if (this.clickMode === 'walkway') {
+            if (this.walkwaySlots.has(key)) {
+              this.walkwaySlots.delete(key);
+            } else {
+              this.disabledSlots.delete(key);
+              this.walkwaySlots.add(key);
+            }
           } else {
-            this.disabledSlots.add(key);
+            if (this.disabledSlots.has(key)) {
+              this.disabledSlots.delete(key);
+            } else {
+              this.walkwaySlots.delete(key);
+              this.disabledSlots.add(key);
+            }
           }
           if (this.onToggleObstacle) this.onToggleObstacle();
         }
@@ -669,6 +681,22 @@ const Scene3D = {
           obsMesh.userData = { slotKey };
           parentGroup.add(obsMesh);
           this.panelMeshes.push(obsMesh);
+        } else if (this.walkwaySlots.has(slotKey)) {
+          // Render flat maintenance access walkway (no PV, no shadow casting)
+          const walkGeo = new THREE.BoxGeometry(pW * 0.9, 0.025, Math.max(0.5, pH * Math.cos(localRackTiltRad) * 0.9));
+          const walkMat = new THREE.MeshStandardMaterial({
+            color: 0xe2e8f0,
+            roughness: 0.9,
+            transparent: true,
+            opacity: 0.78
+          });
+          const walkMesh = new THREE.Mesh(walkGeo, walkMat);
+          walkMesh.position.set(posX, 0.165, posZ);
+          walkMesh.castShadow = false;
+          walkMesh.receiveShadow = true;
+          walkMesh.userData = { slotKey, isWalkway: true };
+          parentGroup.add(walkMesh);
+          this.panelMeshes.push(walkMesh);
         } else {
           const holder = new THREE.Group();
           holder.position.set(posX, 0.2 + Math.sin(localRackTiltRad) * (pH / 2), posZ);

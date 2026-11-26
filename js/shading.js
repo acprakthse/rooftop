@@ -257,7 +257,7 @@ const ShadingAnalyzer = {
   _collectOccluders(scene3d) {
     const meshes = [];
     scene3d.rootGroup.traverse((obj) => {
-      if (obj.isMesh) meshes.push(obj);
+      if (obj.isMesh && !(obj.userData && obj.userData.isWalkway)) meshes.push(obj);
     });
     return meshes;
   }

@@ -309,7 +309,8 @@ function geometryFingerprint() {
     AppState.roofSetback, AppState.parapetHeight, AppState.panelOrientation, AppState.rowGap,
     AppState.rackTilt, AppState.bessKwh, AppState.siteLocation,
     AppState.customModule, AppState.mapPolygonXY,
-    [...Scene3D.disabledSlots].sort()
+    [...Scene3D.disabledSlots].sort(),
+    [...Scene3D.walkwaySlots].sort()
   ]);
 }
 
@@ -867,7 +868,9 @@ function exportSettings() {
       parapetHeightM: AppState.parapetHeight,
       orientationDeg: AppState.orientation,
       disabledSlots: (typeof Scene3D !== 'undefined' && Scene3D.disabledSlots)
-        ? Array.from(Scene3D.disabledSlots) : []
+        ? Array.from(Scene3D.disabledSlots) : [],
+      walkwaySlots: (typeof Scene3D !== 'undefined' && Scene3D.walkwaySlots)
+        ? Array.from(Scene3D.walkwaySlots) : []
     },
     pv: {
       orientation: AppState.panelOrientation,
@@ -979,6 +982,10 @@ async function onSettingsFile(file) {
     if (Array.isArray(roof.disabledSlots) && typeof Scene3D !== 'undefined' && Scene3D.disabledSlots) {
       Scene3D.disabledSlots.clear();
       roof.disabledSlots.forEach((k) => { if (typeof k === 'string') Scene3D.disabledSlots.add(k); });
+    }
+    if (Array.isArray(roof.walkwaySlots) && typeof Scene3D !== 'undefined' && Scene3D.walkwaySlots) {
+      Scene3D.walkwaySlots.clear();
+      roof.walkwaySlots.forEach((k) => { if (typeof k === 'string') Scene3D.walkwaySlots.add(k); });
     }
 
     // PV (modul kustom dulu, karena ia membuat opsi 'custom' di select)
@@ -2022,6 +2029,12 @@ function updateAll() {
   document.getElementById('hud-slope-info').textContent = I18n.t('rafterSlope', { v: rafterLength.toFixed(2) });
   document.getElementById('hud-sun-elevation').textContent = I18n.t('sunElevation', { v: elevDeg });
   document.getElementById('obstacle-count').textContent = Scene3D.disabledSlots.size;
+  const walkEl = document.getElementById('walkway-count');
+  if (walkEl) walkEl.textContent = Scene3D.walkwaySlots.size;
+  const hintStrongEl = document.getElementById('hint-strong');
+  if (hintStrongEl) {
+    hintStrongEl.textContent = I18n.t(Scene3D.clickMode === 'walkway' ? 'hintStrongWalkway' : 'hintStrong');
+  }
 
   // Calculate Energy & Financial KPIs (with roof-shape shading when measured)
   const shadingLoss = shadingResult ? shadingResult.annualLossPercent : 0;
@@ -2284,10 +2297,26 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAll();
   });
 
-  // Clear Obstacles
+  // Clear Obstacles & Maintenance Walkways
   document.getElementById('clear-obstacles').addEventListener('click', () => {
     Scene3D.disabledSlots.clear();
+    Scene3D.walkwaySlots.clear();
     updateAll();
+  });
+
+  // 3D Click Mode Toggle: Obstacle (3D box) vs Maintenance Walkway (remove PV, no shadow)
+  document.querySelectorAll('.click-mode-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const mode = btn.getAttribute('data-click-mode') === 'walkway' ? 'walkway' : 'obstacle';
+      Scene3D.clickMode = mode;
+      document.querySelectorAll('.click-mode-btn').forEach((b) => {
+        b.classList.toggle('cam-active', b.getAttribute('data-click-mode') === mode);
+      });
+      const hintStrongEl = document.getElementById('hint-strong');
+      if (hintStrongEl) {
+        hintStrongEl.textContent = I18n.t(mode === 'walkway' ? 'hintStrongWalkway' : 'hintStrong');
+      }
+    });
   });
 
   // Currency Toggle
@@ -2426,6 +2455,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (badge) badge.classList.remove('hidden');
 
       Scene3D.disabledSlots.clear();
+      Scene3D.walkwaySlots.clear();
       updateAll();
     });
 

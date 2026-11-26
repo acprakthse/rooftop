@@ -138,13 +138,15 @@ input[type="range"]::-moz-range-thumb:hover {
   background-color: #12579B;
 }
 
-/* Camera segmented control active state */
-.cam-btn.cam-active {
+/* Camera & click-mode segmented control active state */
+.cam-btn.cam-active,
+.click-mode-btn.cam-active {
   background-color: #12579B;
   color: #FFFFFF;
   border-color: #12579B;
 }
-.cam-btn.cam-active:hover {
+.cam-btn.cam-active:hover,
+.click-mode-btn.cam-active:hover {
   background-color: #0e467d;
 }
 
