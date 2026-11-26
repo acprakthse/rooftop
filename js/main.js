@@ -473,13 +473,14 @@ function buildPysamPayload() {
     });
   }
   const annualLoadKwh = effectiveAnnualLoadKwh();
+  const noBess = AppState.bessKwh <= 0 || AppState.bessKw <= 0;
   const payload = {
     location: weatherInput.mode === 'epw' && weatherInput.epw
       ? weatherInput.prevLocation
       : AppState.siteLocation,
     slopes,
-    bess_power_kw: AppState.bessKw,
-    bess_capacity_kwh: AppState.bessKwh,
+    bess_power_kw: noBess ? 0 : AppState.bessKw,
+    bess_capacity_kwh: noBess ? 0 : AppState.bessKwh,
     annual_load_kwh: Math.round(annualLoadKwh),
     include_economics: true
   };
@@ -489,7 +490,7 @@ function buildPysamPayload() {
   if (loadInput.mode === 'csv' && loadInput.csv) payload.load_profile_kw = loadInput.csv.hours;
   // Custom BESS: efficiency + SoC window from the uploaded spec. DoD maps
   // to a SoC window of [100-DoD, 100], e.g. DoD 90% -> SoC 10-100%.
-  if (customBess) {
+  if (customBess && !noBess) {
     payload.batt_eff_charge_percent = customBess.rte * 100;
     payload.batt_eff_discharge_percent = customBess.rte * 100;
     payload.soc_min_percent = Math.round((1 - customBess.dod) * 100);
@@ -592,10 +593,6 @@ async function runPysamSimulation() {
   }
   const statusEl = document.getElementById('pysam-status');
   updateAll(); // fresh scene + metrics before validating
-  if (AppState.bessKwh <= 0) {
-    if (statusEl) statusEl.textContent = I18n.t('pysamNoBess');
-    return;
-  }
   const counts = slopePanelCounts();
   const totalModules = Object.values(counts).reduce((a, b) => a + b, 0);
   if (totalModules === 0) {
@@ -731,9 +728,11 @@ function buildReportMeta() {
     module_label: AppState.customModule
       ? AppState.customModule.name + ' (' + AppState.customModule.wp + ' Wp)'
       : AppState.panelWp + ' Wp',
-    bess_label: customBess
-      ? customBess.name
-      : (chem ? chem.label : AppState.bessChemistry) + ' · ' + AppState.bessKwh + ' kWh / ' + AppState.bessKw + ' kW',
+    bess_label: (AppState.bessKwh <= 0 || AppState.bessKw <= 0)
+      ? I18n.t('bessNoneToggle')
+      : customBess
+        ? customBess.name
+        : (chem ? chem.label : AppState.bessChemistry) + ' · ' + AppState.bessKwh + ' kWh / ' + AppState.bessKw + ' kW',
     generated_at_iso: new Date().toISOString()
   };
   if (shadingResult) {
@@ -1048,7 +1047,7 @@ async function onSettingsFile(file) {
     if (!customBessApplied) {
       setChange('bess-chemistry', enm(bess, 'chemistry', ['LFP', 'NAION', 'VRFB'], 'bess.chemistry'));
       setInput('bess-kwh', num(bess, 'capacityKwh', 0, 500, 'bess.capacityKwh'));
-      setInput('bess-kw', num(bess, 'powerKw', 5, 500, 'bess.powerKw'));
+      setInput('bess-kw', num(bess, 'powerKw', 0, 500, 'bess.powerKw'));
     }
 
     // Beban: isi nilai skalar dulu, mode terakhir (handler mode mengisi
@@ -1842,15 +1841,18 @@ function renderPysamUI() {
     })
     : '';
 
-  document.getElementById('pysam-battery').textContent = I18n.t('pysamBattery', {
-    rte: r.battery.roundtrip_efficiency_percent.toFixed(1),
-    smin: r.battery.soc_min_percent.toFixed(0),
-    smax: r.battery.soc_max_percent.toFixed(0),
-    ch: (r.battery.throughput_charge_kwh / 1000).toFixed(1),
-    thr: (r.battery.throughput_discharge_kwh / 1000).toFixed(1),
-    cyc: r.battery.equivalent_full_cycles.toFixed(1),
-    cap: r.battery.computed_bank_capacity_kwh.toFixed(0)
-  });
+  const noBattResult = !r.battery || !(r.battery.computed_bank_capacity_kwh > 0);
+  document.getElementById('pysam-battery').textContent = noBattResult
+    ? I18n.t('pysamBatteryNone')
+    : I18n.t('pysamBattery', {
+      rte: r.battery.roundtrip_efficiency_percent.toFixed(1),
+      smin: r.battery.soc_min_percent.toFixed(0),
+      smax: r.battery.soc_max_percent.toFixed(0),
+      ch: (r.battery.throughput_charge_kwh / 1000).toFixed(1),
+      thr: (r.battery.throughput_discharge_kwh / 1000).toFixed(1),
+      cyc: r.battery.equivalent_full_cycles.toFixed(1),
+      cap: r.battery.computed_bank_capacity_kwh.toFixed(0)
+    });
 
   const tbody = document.getElementById('pysam-slopes');
   tbody.innerHTML = '';
@@ -2001,6 +2003,14 @@ function updateAll() {
   document.getElementById('val-bess-kwh').textContent = `${AppState.bessKwh} kWh`;
   document.getElementById('val-bess-kw').textContent = `${AppState.bessKw} kW`;
 
+  const noBess = AppState.bessKwh <= 0 || AppState.bessKw <= 0;
+  const bessNoneToggle = document.getElementById('bess-none-toggle');
+  if (bessNoneToggle) bessNoneToggle.checked = noBess;
+  const wrapBessChem = document.getElementById('wrap-bess-chem');
+  const wrapBessControls = document.getElementById('wrap-bess-controls');
+  if (wrapBessChem) wrapBessChem.classList.toggle('ctrl-dimmed', noBess);
+  if (wrapBessControls) wrapBessControls.classList.toggle('ctrl-dimmed', noBess);
+
   // Contextual controls: highlight only sliders applicable to active roof typology
   const isFlatRoof = AppState.roofType === 'flat-tilt' || AppState.roofType === 'l-shape';
   const wrapRoofTilt = document.getElementById('wrap-roof-tilt');
@@ -2048,8 +2058,10 @@ function updateAll() {
   document.getElementById('kpi-specific').textContent = shadingResult
     ? I18n.t('specificYieldShaded', { pr: (metrics.pr * 100).toFixed(0), kwh: metrics.dailyKwh.toFixed(0), sh: shadingLoss.toFixed(1) })
     : I18n.t('specificYield', { pr: (metrics.pr * 100).toFixed(0), kwh: metrics.dailyKwh.toFixed(0) });
-  document.getElementById('kpi-bess').textContent = AppState.bessKwh;
-  document.getElementById('kpi-autonomy').textContent = `${metrics.chem.label} · ${(metrics.chem.rte * 100).toFixed(0)}% RTE`;
+  document.getElementById('kpi-bess').textContent = noBess ? '0' : AppState.bessKwh;
+  document.getElementById('kpi-autonomy').textContent = noBess
+    ? I18n.t('bessNoneShort')
+    : `${metrics.chem.label} · ${(metrics.chem.rte * 100).toFixed(0)}% RTE`;
   document.getElementById('kpi-savings').textContent = formatCurrency(metrics);
   document.getElementById('kpi-co2').textContent = I18n.t('co2Avoided', { v: metrics.co2Tonnes.toFixed(1) });
 
@@ -2066,6 +2078,9 @@ function updateAll() {
   renderLoadUI();
   renderWeatherUI();
 }
+
+let savedBessKwh = 120;
+let savedBessKw = 60;
 
 document.addEventListener('DOMContentLoaded', () => {
   I18n.init();
@@ -2095,9 +2110,56 @@ document.addEventListener('DOMContentLoaded', () => {
   bindInput('panel-orientation', 'panelOrientation', String);
   bindInput('row-gap', 'rowGap', parseFloat);
   bindInput('rack-tilt', 'rackTilt', parseFloat);
-  bindInput('bess-kwh', 'bessKwh', parseInt);
-  bindInput('bess-kw', 'bessKw', parseInt);
   bindInput('sun-hour', 'sunHour', parseFloat);
+
+  const bessKwhEl = document.getElementById('bess-kwh');
+  const bessKwEl = document.getElementById('bess-kw');
+  if (bessKwhEl) {
+    bessKwhEl.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      AppState.bessKwh = val;
+      if (val > 0) {
+        savedBessKwh = val;
+        if (AppState.bessKw <= 0) {
+          AppState.bessKw = savedBessKw > 0 ? savedBessKw : 60;
+          if (bessKwEl) bessKwEl.value = AppState.bessKw;
+        }
+      }
+      updateAll();
+    });
+  }
+  if (bessKwEl) {
+    bessKwEl.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      AppState.bessKw = val;
+      if (val > 0) {
+        savedBessKw = val;
+        if (AppState.bessKwh <= 0) {
+          AppState.bessKwh = savedBessKwh > 0 ? savedBessKwh : 120;
+          if (bessKwhEl) bessKwhEl.value = AppState.bessKwh;
+        }
+      }
+      updateAll();
+    });
+  }
+
+  const bessNoneEl = document.getElementById('bess-none-toggle');
+  if (bessNoneEl) {
+    bessNoneEl.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        if (AppState.bessKwh > 0) savedBessKwh = AppState.bessKwh;
+        if (AppState.bessKw > 0) savedBessKw = AppState.bessKw;
+        AppState.bessKwh = 0;
+        AppState.bessKw = 0;
+      } else {
+        AppState.bessKwh = savedBessKwh > 0 ? savedBessKwh : 120;
+        AppState.bessKw = savedBessKw > 0 ? savedBessKw : 60;
+      }
+      if (bessKwhEl) bessKwhEl.value = AppState.bessKwh;
+      if (bessKwEl) bessKwEl.value = AppState.bessKw;
+      updateAll();
+    });
+  }
 
   // Stage 2: Auto-Optimize Layout (Portrait vs Landscape + Solstice +/-3h row gap)
   const optBtn = document.getElementById('btn-optimize-layout');
